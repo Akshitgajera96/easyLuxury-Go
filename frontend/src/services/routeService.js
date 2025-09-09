@@ -49,13 +49,21 @@ export const searchRoutes = async (filters = {}) => {
 // 📊 Get popular routes
 export const getPopularRoutes = async (limit = 10) => {
   try {
-    return await apiCall('get', BUS_API.GET_BY_ROUTE, null, {
-      params: { popular: true, limit }
-    });
+    return await apiCall('get', '/buses/popular', null, { params: { limit } });
   } catch (error) {
     throw error || { message: 'Failed to fetch popular routes' };
   }
 };
+
+// ⭐ Get featured routes
+export const getFeaturedRoutes = async () => {
+  try {
+    return await apiCall('get', '/buses/featured');
+  } catch (error) {
+    throw error || { message: 'Failed to fetch featured routes' };
+  }
+};
+
 
 // 🗺️ Get routes with map data
 export const getRoutesWithMap = async (bounds = null) => {
@@ -73,14 +81,6 @@ export const getRoutesWithMap = async (bounds = null) => {
   }
 };
 
-// ⭐ Get featured routes (special promotions, etc.)
-export const getFeaturedRoutes = async () => {
-  try {
-    return await apiCall('get', `${BUS_API.GET_BY_ROUTE}/featured`);
-  } catch (error) {
-    throw error || { message: 'Failed to fetch featured routes' };
-  }
-};
 
 // 📅 Get routes by date range
 export const getRoutesByDateRange = async (startDate, endDate, params = {}) => {

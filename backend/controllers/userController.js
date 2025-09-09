@@ -1,393 +1,375 @@
-const User = require("../models/User");
-const WalletTransaction = require("../models/WalletTransaction");
+// backend/controllers/userController.js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-// ✅ Get current user's profile
+const User = require('../models/User');
+const WalletTransaction = require('../models/WalletTransaction');
+
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
+
+/**
+ * Helper: safe parse page/limit
+ */
+function parsePagination(query) {
+  const page = Math.max(1, parseInt(query.page || '1', 10));
+  const limit = Math.max(1, Math.min(100, parseInt(query.limit || '10', 10)));
+  return { page, limit };
+}
+
+/**
+ * GET /api/users/me
+ * Get current user's profile
+ */
 exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select("-password -__v")
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, msg: 'Authentication required' });
+
+    const user = await User.findById(userId)
+      .select('-password -__v')
       .populate({
         path: 'walletTransactions',
         options: { sort: { createdAt: -1 }, limit: 5 },
-        select: 'amount type description createdAt'
+        select: 'amount type description createdAt status balanceAfter'
       });
 
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
+    if (!user) return res.status(404).json({ success: false, msg: 'User not found' });
 
-    res.status(200).json(user);
+    return res.status(200).json({ success: true, user });
   } catch (err) {
-    console.error("❌ Error fetching user profile:", err);
-    
+    console.error('Error fetching user profile:', err);
     if (err.name === 'CastError') {
-      return res.status(400).json({ msg: "Invalid user ID format" });
+      return res.status(400).json({ success: false, msg: 'Invalid user ID format' });
     }
-    
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Update user profile
+/**
+ * PUT /api/users/me
+ * Update user profile
+ */
 exports.updateUserProfile = async (req, res) => {
   try {
-    const { name, phone, address } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, msg: 'Authentication required' });
 
-    // Validation
+    const { name, phone, address } = req.body || {};
     if (!name && !phone && !address) {
-      return res.status(400).json({ msg: "At least one field is required for update" });
+      return res.status(400).json({ success: false, msg: 'At least one field is required for update' });
     }
 
     const updateData = {};
-    if (name) updateData.name = name.trim();
-    if (phone) updateData.phone = phone.trim();
-    if (address) updateData.address = address.trim();
+    if (typeof name === 'string' && name.trim().length) updateData.name = name.trim();
+    if (typeof phone === 'string' && phone.trim().length) updateData.phone = phone.trim();
+    if (typeof address === 'string' && address.trim().length) updateData.address = address.trim();
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select("-password -__v");
+    const user = await User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true }).select('-password -__v');
+    if (!user) return res.status(404).json({ success: false, msg: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
-
-    res.status(200).json({
-      msg: "Profile updated successfully",
-      user
-    });
+    return res.status(200).json({ success: true, msg: 'Profile updated successfully', user });
   } catch (err) {
-    console.error("❌ Error updating user profile:", err);
-    
+    console.error('Error updating user profile:', err);
     if (err.name === 'ValidationError') {
-      return res.status(400).json({ 
-        msg: "Validation error", 
-        error: err.message 
-      });
+      return res.status(400).json({ success: false, msg: 'Validation error', error: err.message });
     }
-    
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Update wallet balance (with transaction history)
+/**
+ * POST /api/users/wallet
+ * Update wallet balance (deposit/withdrawal/refund/payment)
+ */
 exports.updateWallet = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const { amount, type = 'deposit', description } = req.body;
-    const userId = req.user.id;
-
-    // Validation
-    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-      return res.status(400).json({ msg: "Valid positive amount is required" });
-    }
-
-    const numericAmount = parseFloat(amount);
-    const validTypes = ['deposit', 'withdrawal', 'refund', 'payment'];
-    
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({ msg: "Invalid transaction type" });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
-
-    // Check for sufficient balance for withdrawals
-    if (type === 'withdrawal' && user.walletBalance < numericAmount) {
-      return res.status(400).json({ msg: "Insufficient wallet balance" });
-    }
-
-    // Calculate new balance
-    let newBalance = user.walletBalance || 0;
-    if (type === 'deposit' || type === 'refund') {
-      newBalance += numericAmount;
-    } else if (type === 'withdrawal' || type === 'payment') {
-      newBalance -= numericAmount;
-    }
-
-    // Start transaction session for atomic operations
-    const session = await User.startSession();
-    session.startTransaction();
-
-    try {
-      // Update user wallet balance
-      user.walletBalance = newBalance;
-      await user.save({ session });
-
-      // Create wallet transaction record
-      const transaction = new WalletTransaction({
-        user: userId,
-        amount: numericAmount,
-        type,
-        description: description || `${type} transaction`,
-        balanceAfter: newBalance,
-        status: 'completed'
-      });
-
-      await transaction.save({ session });
-
-      // Add transaction to user's transaction history
-      user.walletTransactions.push(transaction._id);
-      await user.save({ session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.status(200).json({
-        msg: "Wallet updated successfully",
-        balance: newBalance,
-        transactionId: transaction._id,
-        transactionType: type
-      });
-
-    } catch (transactionError) {
+    const userId = req.user?.id;
+    if (!userId) {
       await session.abortTransaction();
       session.endSession();
-      throw transactionError;
+      return res.status(401).json({ success: false, msg: 'Authentication required' });
     }
 
-  } catch (err) {
-    console.error("❌ Error updating wallet:", err);
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    const { amount, type = 'deposit', description } = req.body || {};
+    if (amount == null || isNaN(amount) || Number(amount) <= 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Valid positive amount is required' });
+    }
+
+    const numericAmount = Number(amount);
+    const validTypes = ['deposit', 'withdrawal', 'refund', 'payment'];
+    if (!validTypes.includes(type)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Invalid transaction type' });
+    }
+
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, msg: 'User not found' });
+    }
+
+    if ((type === 'withdrawal' || type === 'payment') && (user.walletBalance || 0) < numericAmount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Insufficient wallet balance' });
+    }
+
+    // Compute new balance
+    let newBalance = Number(user.walletBalance || 0);
+    if (type === 'deposit' || type === 'refund') newBalance += numericAmount;
+    else newBalance -= numericAmount;
+
+    // Save transaction
+    const transaction = new WalletTransaction({
+      user: userId,
+      amount: numericAmount,
+      type,
+      description: description || `${type} transaction`,
+      balanceAfter: newBalance,
+      status: 'completed',
+      processedAt: new Date()
     });
+
+    await transaction.save({ session });
+
+    // Update user's wallet and push transaction id
+    user.walletBalance = newBalance;
+    // ensure walletTransactions is an array
+    if (!Array.isArray(user.walletTransactions)) user.walletTransactions = [];
+    user.walletTransactions.push(transaction._id);
+    await user.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      msg: 'Wallet updated successfully',
+      balance: newBalance,
+      transactionId: transaction._id,
+      transactionType: type
+    });
+  } catch (err) {
+    try { await session.abortTransaction(); } catch (e) { /* ignore */ }
+    session.endSession();
+    console.error('Error updating wallet:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get wallet transactions with pagination
+/**
+ * GET /api/users/wallet/transactions
+ * Get wallet transactions for current user (pagination + filter)
+ */
 exports.getWalletTransactions = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { page = 1, limit = 10, type } = req.query;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, msg: 'Authentication required' });
+
+    const { page, limit } = parsePagination(req.query);
+    const { type } = req.query;
 
     const filter = { user: userId };
-    if (type && ['deposit', 'withdrawal', 'refund', 'payment'].includes(type)) {
-      filter.type = type;
-    }
+    if (type && ['deposit', 'withdrawal', 'refund', 'payment'].includes(type)) filter.type = type;
 
-    const transactions = await WalletTransaction.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .select('-__v');
+    const [transactions, total, user] = await Promise.all([
+      WalletTransaction.find(filter).sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit).select('-__v'),
+      WalletTransaction.countDocuments(filter),
+      User.findById(userId).select('walletBalance')
+    ]);
 
-    const total = await WalletTransaction.countDocuments(filter);
-
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       total,
-      page: parseInt(page),
+      page,
       pages: Math.ceil(total / limit),
       transactions,
-      currentBalance: (await User.findById(userId)).walletBalance
+      currentBalance: user?.walletBalance ?? 0
     });
   } catch (err) {
-    console.error("❌ Error fetching wallet transactions:", err);
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+    console.error('Error fetching wallet transactions:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get any user by ID (admin access or used in frontend /:id route)
+/**
+ * GET /api/users/:id
+ * Get any user by id (admin or same user)
+ */
 exports.getUserDetails = async (req, res) => {
   try {
-    const { id } = req.params;
+    const requester = req.user;
+    if (!requester) return res.status(401).json({ success: false, msg: 'Authentication required' });
 
-    if (!id) {
-      return res.status(400).json({ msg: "User ID is required" });
-    }
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ success: false, msg: 'User ID is required' });
+
+    const isAdmin = requester.role === 'admin';
+    const isSameUser = String(requester.id) === String(id);
+    if (!isAdmin && !isSameUser) return res.status(403).json({ success: false, msg: 'Access denied' });
 
     const user = await User.findById(id)
-      .select("-password -__v")
+      .select('-password -__v')
       .populate({
         path: 'walletTransactions',
         options: { sort: { createdAt: -1 }, limit: 3 },
-        select: 'amount type createdAt'
+        select: 'amount type createdAt status balanceAfter'
       });
 
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
+    if (!user) return res.status(404).json({ success: false, msg: 'User not found' });
 
-    // Check if requester is admin or the same user
-    const isAdmin = req.user.role === 'admin';
-    const isSameUser = req.user.id === id;
-
-    if (!isAdmin && !isSameUser) {
-      return res.status(403).json({ msg: "Access denied" });
-    }
-
-    res.status(200).json(user);
+    return res.status(200).json({ success: true, user });
   } catch (err) {
-    console.error("❌ Error getting user details:", err);
-    
-    if (err.name === 'CastError') {
-      return res.status(400).json({ msg: "Invalid user ID format" });
-    }
-    
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+    console.error('Error getting user details:', err);
+    if (err.name === 'CastError') return res.status(400).json({ success: false, msg: 'Invalid user ID format' });
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get all users (admin only)
+/**
+ * GET /api/users
+ * Get all users (admin only)
+ */
 exports.getAllUsers = async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ msg: "Access denied. Admin required." });
-    }
+    const requester = req.user;
+    if (!requester || requester.role !== 'admin') return res.status(403).json({ success: false, msg: 'Access denied. Admin required.' });
 
-    const { page = 1, limit = 10, search, role } = req.query;
+    const { page, limit } = parsePagination(req.query);
+    const { search, role } = req.query;
 
     const filter = {};
     if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
+      const s = String(search).trim();
+      filter.$or = [{ name: { $regex: s, $options: 'i' } }, { email: { $regex: s, $options: 'i' } }];
     }
+    if (role && ['user', 'admin', 'captain'].includes(role)) filter.role = role;
 
-    if (role && ['user', 'admin', 'captain'].includes(role)) {
-      filter.role = role;
-    }
+    const [users, total] = await Promise.all([
+      User.find(filter).select('-password -__v').sort({ createdAt: -1 }).limit(limit).skip((page - 1) * limit),
+      User.countDocuments(filter)
+    ]);
 
-    const users = await User.find(filter)
-      .select("-password -__v")
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await User.countDocuments(filter);
-
-    res.status(200).json({
-      total,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
-      users
-    });
+    return res.status(200).json({ success: true, total, page, pages: Math.ceil(total / limit), users });
   } catch (err) {
-    console.error("❌ Error getting all users:", err);
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+    console.error('Error getting all users:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Delete user account (admin or self)
+/**
+ * DELETE /api/users/:id
+ * Delete user account (admin or self)
+ */
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const requesterId = req.user.id;
-    const requesterRole = req.user.role;
+    const requester = req.user;
+    if (!requester) return res.status(401).json({ success: false, msg: 'Authentication required' });
 
-    if (!id) {
-      return res.status(400).json({ msg: "User ID is required" });
-    }
+    if (!id) return res.status(400).json({ success: false, msg: 'User ID is required' });
 
-    // Check if user is trying to delete themselves or is admin
-    const isSelfDelete = id === requesterId;
-    const isAdmin = requesterRole === 'admin';
-
-    if (!isSelfDelete && !isAdmin) {
-      return res.status(403).json({ msg: "Access denied" });
-    }
+    const isSelfDelete = String(id) === String(requester.id);
+    const isAdmin = requester.role === 'admin';
+    if (!isSelfDelete && !isAdmin) return res.status(403).json({ success: false, msg: 'Access denied' });
 
     const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
+    if (!user) return res.status(404).json({ success: false, msg: 'User not found' });
 
-    // Prevent admin from deleting themselves if they're the only admin
+    // Prevent deleting last admin
     if (isSelfDelete && isAdmin) {
       const adminCount = await User.countDocuments({ role: 'admin' });
-      if (adminCount <= 1) {
-        return res.status(400).json({ msg: "Cannot delete the only admin account" });
-      }
+      if (adminCount <= 1) return res.status(400).json({ success: false, msg: 'Cannot delete the only admin account' });
     }
 
     await User.findByIdAndDelete(id);
 
-    res.status(200).json({ 
-      msg: "User account deleted successfully" 
-    });
+    return res.status(200).json({ success: true, msg: 'User account deleted successfully' });
   } catch (err) {
-    console.error("❌ Error deleting user:", err);
-    
-    if (err.name === 'CastError') {
-      return res.status(400).json({ msg: "Invalid user ID format" });
-    }
-    
-    res.status(500).json({ 
-      msg: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+    console.error('Error deleting user:', err);
+    if (err.name === 'CastError') return res.status(400).json({ success: false, msg: 'Invalid user ID format' });
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// controllers/userController.js
-
-// Change password
+/**
+ * POST /api/users/change-password
+ * Change password for current user (requires currentPassword, newPassword)
+ */
 exports.changePassword = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("+password");
-    const { currentPassword, newPassword } = req.body;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, msg: 'Authentication required' });
 
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      return res.status(400).json({ msg: "Current password is incorrect" });
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) return res.status(400).json({ success: false, msg: 'currentPassword and newPassword are required' });
+
+    const user = await User.findById(userId).select('+password');
+    if (!user) return res.status(404).json({ success: false, msg: 'User not found' });
+
+    // Use model comparePassword if available, otherwise bcrypt.compare
+    const isMatch = typeof user.comparePassword === 'function' ? await user.comparePassword(currentPassword) : await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ success: false, msg: 'Current password is incorrect' });
+
+    // Validate new password strength (simple example)
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ success: false, msg: 'New password must be at least 6 characters long' });
     }
 
-    user.password = newPassword;
+    // Hash new password
+    const salt = await bcrypt.genSalt(SALT_ROUNDS);
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    res.status(200).json({ msg: "Password updated successfully" });
+    return res.status(200).json({ success: true, msg: 'Password updated successfully' });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Error changing password:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// Update preferences
+/**
+ * PATCH /api/users/preferences
+ * Update preferences
+ */
 exports.updatePreferences = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { preferences: req.body.preferences },
-      { new: true, runValidators: true }
-    ).select("-password -__v");
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, msg: 'Authentication required' });
 
-    res.status(200).json({
-      msg: "Preferences updated successfully",
-      preferences: user.preferences,
-    });
+    const preferences = req.body.preferences || {};
+    const user = await User.findByIdAndUpdate(userId, { preferences }, { new: true, runValidators: true }).select('-password -__v');
+    if (!user) return res.status(404).json({ success: false, msg: 'User not found' });
+
+    return res.status(200).json({ success: true, msg: 'Preferences updated successfully', preferences: user.preferences });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Error updating preferences:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// Get user stats (admin only)
+/**
+ * GET /api/users/stats
+ * Get user stats (admin only)
+ */
 exports.getUserStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ status: "active" });
-    const suspendedUsers = await User.countDocuments({ status: "suspended" });
+    const requester = req.user;
+    if (!requester || requester.role !== 'admin') return res.status(403).json({ success: false, msg: 'Admin access required' });
 
-    res.status(200).json({ totalUsers, activeUsers, suspendedUsers });
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ status: 'active' });
+    const suspendedUsers = await User.countDocuments({ status: 'suspended' });
+
+    return res.status(200).json({ success: true, totalUsers, activeUsers, suspendedUsers });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Error fetching user stats:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };

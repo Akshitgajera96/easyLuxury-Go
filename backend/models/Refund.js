@@ -12,7 +12,6 @@ const refundSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Booking",
       required: [true, "Booking reference is required"],
-      index: true,
       validate: {
         validator: async function(bookingId) {
           const booking = await mongoose.model("Booking").findById(bookingId);
@@ -25,7 +24,6 @@ const refundSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Ticket",
       required: [true, "Ticket reference is required"],
-      index: true,
       validate: {
         validator: async function(ticketId) {
           const ticket = await mongoose.model("Ticket").findById(ticketId);
@@ -113,8 +111,7 @@ const refundSchema = new mongoose.Schema(
     },
     paymentReference: {
       type: String,
-      trim: true,
-      index: true
+      trim: true
     },
     processedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -232,9 +229,9 @@ refundSchema.virtual("statusDisplay").get(function() {
 // Virtual for estimated completion date
 refundSchema.virtual("estimatedCompletionDate").get(function() {
   if (!this.processedAt && this.estimatedProcessingTime) {
-    const date = new Date(this.createdAt);
-    date.setDate(date.getDate() + this.estimatedProcessingTime);
-    return date;
+  const date = new Date(this.createdAt);
+  date.setDate(date.getDate() + this.estimatedProcessingTime);
+  return date;
   }
   return null;
 });
@@ -251,7 +248,6 @@ refundSchema.index({ ticket: 1 }, { unique: true }); // One refund per ticket
 refundSchema.index({ createdAt: -1 });
 refundSchema.index({ status: 1, isActive: 1 });
 refundSchema.index({ "bankDetails.ifscCode": 1 });
-refundSchema.index({ paymentReference: 1 });
 
 // Pre-save middleware to update status history
 refundSchema.pre("save", function(next) {

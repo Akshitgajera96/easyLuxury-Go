@@ -32,8 +32,7 @@ const ticketSchema = new mongoose.Schema(
       required: [true, "Ticket number is required"],
       unique: true,
       uppercase: true,
-      match: [/^[A-Z0-9\-]+$/, "Ticket number can only contain letters, numbers, and hyphens"],
-      index: true
+      match: [/^[A-Z0-9\-]+$/, "Ticket number can only contain letters, numbers, and hyphens"]
     },
     seatNumbers: {
       type: [Number],
@@ -320,7 +319,6 @@ ticketSchema.virtual("passengerCount").get(function() {
 ticketSchema.index({ user: 1, status: 1 });
 ticketSchema.index({ bus: 1, "journeyDetails.date": 1 });
 ticketSchema.index({ "journeyDetails.date": 1, status: 1 });
-ticketSchema.index({ ticketNumber: 1 });
 ticketSchema.index({ isActive: 1, status: 1 });
 ticketSchema.index({ "journeyDetails.from": 1, "journeyDetails.to": 1 });
 

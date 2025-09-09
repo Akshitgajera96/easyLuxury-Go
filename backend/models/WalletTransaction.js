@@ -73,13 +73,11 @@ const walletTransactionSchema = new mongoose.Schema(
       unique: true,
       required: [true, "Transaction ID is required"],
       trim: true,
-      uppercase: true,
-      index: true
+      uppercase: true
     },
     reference: {
       type: String,
-      trim: true,
-      index: true
+      trim: true
     },
     referenceType: {
       type: String,
@@ -148,7 +146,6 @@ const walletTransactionSchema = new mongoose.Schema(
       reason: {
         type: String,
         trim: true,
-        maxlength: [500, "Reversal reason cannot exceed 500 characters"]
       },
       reversedAt: {
         type: Date,
@@ -209,8 +206,6 @@ walletTransactionSchema.virtual('isReversible').get(function() {
 
 // Indexes for better query performance
 walletTransactionSchema.index({ user: 1, createdAt: -1 });
-walletTransactionSchema.index({ transactionId: 1 });
-walletTransactionSchema.index({ reference: 1 });
 walletTransactionSchema.index({ category: 1, status: 1 });
 walletTransactionSchema.index({ createdAt: 1 });
 walletTransactionSchema.index({ 'paymentGateway.transactionId': 1 });

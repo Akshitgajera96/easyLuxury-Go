@@ -10,7 +10,9 @@ const {
   getBusAvailability,
   updateBusStatus,
   getBusAnalytics,
-  exportBuses
+  exportBuses,
+  getFeaturedRoutes,
+  getPopularRoutes
 } = require('../controllers/busController');
 const { protect, admin, captain } = require('../middlewares/authMiddleware');
 
@@ -280,5 +282,38 @@ router.get('/admin/analytics', protect, admin, getBusAnalytics);
 // @desc    Export buses data
 // @access  Private (Admin)
 router.get('/admin/export', protect, admin, exportBuses);
+
+// @route   GET /api/buses/route/featured
+// @desc    Get featured routes
+// @access  Public
+router.get('/route/featured', getFeaturedRoutes);
+
+// @route   GET /api/buses/route/popular
+// @desc    Get popular routes with limit
+// @access  Public
+router.get('/route/popular', getPopularRoutes);
+
+
+
+// 📊 Popular routes
+router.get('/popular', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const routes = await Bus.find().sort({ bookings: -1 }).limit(limit);
+    res.json(routes);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch popular routes' });
+  }
+});
+
+// ⭐ Featured routes
+router.get('/featured', async (req, res) => {
+  try {
+    const routes = await Bus.find({ isFeatured: true }).limit(10);
+    res.json(routes);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch featured routes' });
+  }
+});
 
 module.exports = router;

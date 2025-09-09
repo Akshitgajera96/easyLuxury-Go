@@ -1,9 +1,14 @@
-const Bus = require("../models/Bus");
+// backend/controllers/busController.js
+const mongoose = require('mongoose');
+const Bus = require('../models/Bus');
+const Booking = require('../models/Booking');
 
-// @desc    Create a new bus
-// @route   POST /api/buses
-// @access  Admin
-const createBus = async (req, res) => {
+/**
+ * Create a new bus
+ * POST /api/buses
+ * Admin
+ */
+const createBus = async (req, res, next) => {
   try {
     const {
       busNumber,
@@ -11,149 +16,157 @@ const createBus = async (req, res) => {
       operator,
       totalSeats,
       route,
-      stops,
-      photos,
-      amenities,
+      stops = [],
+      photos = [],
+      amenities = [],
       schedule,
       basePrice,
-      features
-    } = req.body;
+      features = {}
+    } = req.body || {};
 
-    // Enhanced validation
-    if (!busNumber || !busName || !operator || !totalSeats || !route || 
-        !schedule || !schedule.departure || !schedule.arrival || !basePrice) {
-      return res.status(400).json({ 
-        message: "Missing required fields: busNumber, busName, operator, totalSeats, route, schedule.departure, schedule.arrival, basePrice" 
+    // Required fields
+    if (!busNumber || !busName || !operator || !totalSeats || !route || !schedule || !schedule.departure || !schedule.arrival || basePrice == null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: busNumber, busName, operator, totalSeats, route, schedule.departure, schedule.arrival, basePrice'
       });
     }
 
     if (!Array.isArray(stops)) {
-      return res.status(400).json({ message: "Stops must be an array" });
+      return res.status(400).json({ success: false, message: 'Stops must be an array' });
     }
 
     if (photos && !Array.isArray(photos)) {
-      return res.status(400).json({ message: "Photos must be an array" });
+      return res.status(400).json({ success: false, message: 'Photos must be an array' });
     }
 
-    // Check if bus with same number plate already exists
-    const existingBus = await Bus.findOne({ busNumber });
+    const normalizedBusNumber = String(busNumber).trim().toUpperCase();
+
+    // Prevent duplicate busNumber
+    const existingBus = await Bus.findOne({ busNumber: normalizedBusNumber });
     if (existingBus) {
-      return res.status(409).json({ message: "Bus with this number already exists" });
+      return res.status(409).json({ success: false, message: 'Bus with this number already exists' });
     }
 
-    // Validate seat numbers
-    if (totalSeats <= 0 || totalSeats > 100) {
-      return res.status(400).json({ message: "Total seats must be between 1 and 100" });
+    // Seat count validation
+    const seatsCount = parseInt(totalSeats, 10);
+    if (isNaN(seatsCount) || seatsCount <= 0 || seatsCount > 200) {
+      return res.status(400).json({ success: false, message: 'totalSeats must be a number between 1 and 200' });
     }
 
-    // Create seats array
-    const seats = Array.from({ length: totalSeats }, (_, i) => ({
-      number: i + 1,
+    // Build seats array (numbers as strings)
+    const seats = Array.from({ length: seatsCount }, (_, i) => ({
+      number: String(i + 1),
       isBooked: false,
       bookedBy: null,
       bookingType: null,
       bookedAt: null,
-      seatType: "standard",
+      seatType: 'standard',
       priceMultiplier: 1.0
     }));
 
     const newBus = new Bus({
-      busNumber: busNumber.trim().toUpperCase(),
-      busName: busName.trim(),
-      operator: operator.trim(),
-      totalSeats,
+      busNumber: normalizedBusNumber,
+      busName: String(busName).trim(),
+      operator: String(operator).trim(),
+      totalSeats: seatsCount,
       seats,
-      availableSeats: totalSeats,
+      availableSeats: seatsCount,
       route: {
-        from: route.from?.trim(),
-        to: route.to?.trim(),
-        distance: route.distance,
-        duration: route.duration,
-        stops: stops.map(stop => ({
-          name: stop.name?.trim(),
-          time: stop.time,
-          order: stop.order,
-          distanceFromStart: stop.distanceFromStart || 0
-        })),
-        type: route.type || "intercity"
+        from: route.from?.trim() || '',
+        to: route.to?.trim() || '',
+        distance: route.distance || 0,
+        duration: route.duration || '',
+        stops: Array.isArray(stops) ? stops.map(s => ({
+          name: s.name?.trim() || '',
+          time: s.time || null,
+          order: s.order || null,
+          distanceFromStart: s.distanceFromStart || 0
+        })) : []
       },
       schedule: {
         departure: schedule.departure,
         arrival: schedule.arrival,
-        frequency: schedule.frequency || "daily"
+        frequency: schedule.frequency || 'daily'
       },
       basePrice,
-      photos: photos || [],
-      amenities: amenities || [],
-      features: features || {
-        ac: false,
-        wifi: false,
-        chargingPoints: false,
-        entertainment: false,
-        toilet: false
+      photos,
+      amenities,
+      features: {
+        ac: !!features.ac,
+        wifi: !!features.wifi,
+        chargingPoints: !!features.chargingPoints,
+        entertainment: !!features.entertainment,
+        toilet: !!features.toilet,
+        ...features
       },
-      status: "active",
+      status: 'active',
       isActive: true
     });
 
     await newBus.save();
-    
-    res.status(201).json({ 
-      message: "Bus added successfully", 
-      bus: newBus 
-    });
-  } catch (error) {
-    console.error("Create Bus Error:", error);
-    res.status(500).json({ 
-      message: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+
+    return res.status(201).json({ success: true, message: 'Bus added successfully', bus: newBus });
+  } catch (err) {
+    console.error('Create Bus Error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Get all buses with filtering and pagination
-// @route   GET /api/buses
-// @access  Public
-const getAllBuses = async (req, res) => {
+/**
+ * Get all buses with filtering and pagination
+ * GET /api/buses
+ * Public
+ */
+const getAllBuses = async (req, res, next) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search, 
-      routeFrom, 
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      routeFrom,
       routeTo,
       minSeats,
       maxSeats,
       status,
       sortBy = 'createdAt',
       sortOrder = 'desc'
-    } = req.query;
+    } = req.query || {};
 
-    // Build filter object
-    const filter = { isActive: true };
-    
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10))); // cap limit to 100
+
+    const filter = {};
+    // default only active buses (but allow admin to override by passing status)
+    filter.isActive = true;
+
     if (search) {
+      const s = String(search).trim();
       filter.$or = [
-        { busName: { $regex: search, $options: 'i' } },
-        { busNumber: { $regex: search, $options: 'i' } },
-        { operator: { $regex: search, $options: 'i' } }
+        { busName: { $regex: s, $options: 'i' } },
+        { busNumber: { $regex: s, $options: 'i' } },
+        { operator: { $regex: s, $options: 'i' } }
       ];
     }
 
     if (routeFrom) {
-      filter['route.from'] = { $regex: routeFrom, $options: 'i' };
+      filter['route.from'] = { $regex: String(routeFrom).trim(), $options: 'i' };
     }
-
     if (routeTo) {
-      filter['route.to'] = { $regex: routeTo, $options: 'i' };
+      filter['route.to'] = { $regex: String(routeTo).trim(), $options: 'i' };
     }
 
-    if (minSeats) {
-      filter.availableSeats = { ...filter.availableSeats, $gte: parseInt(minSeats) };
-    }
-
-    if (maxSeats) {
-      filter.availableSeats = { ...filter.availableSeats, $lte: parseInt(maxSeats) };
+    // Seat filters: use numeric comparison on availableSeats
+    if (minSeats != null || maxSeats != null) {
+      filter.availableSeats = {};
+      if (minSeats != null) filter.availableSeats.$gte = parseInt(minSeats, 10);
+      if (maxSeats != null) filter.availableSeats.$lte = parseInt(maxSeats, 10);
+      // If object is empty, delete it
+      if (Object.keys(filter.availableSeats).length === 0) delete filter.availableSeats;
     }
 
     if (status) {
@@ -163,349 +176,432 @@ const getAllBuses = async (req, res) => {
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-    const buses = await Bus.find(filter)
-      .sort(sortOptions)
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const [buses, total] = await Promise.all([
+      Bus.find(filter).sort(sortOptions).limit(limitNum).skip((pageNum - 1) * limitNum),
+      Bus.countDocuments(filter)
+    ]);
 
-    const total = await Bus.countDocuments(filter);
-
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       total,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
       buses
     });
-  } catch (error) {
-    console.error("Get All Buses Error:", error);
-    res.status(500).json({ 
-      message: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+  } catch (err) {
+    console.error('Get All Buses Error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Get bus by ID
-// @route   GET /api/buses/:id
-// @access  Public
-const getBusById = async (req, res) => {
-  try {
-    const bus = await Bus.findById(req.params.id);
-    
-    if (!bus) {
-      return res.status(404).json({ message: "Bus not found" });
-    }
-
-    if (!bus.isActive) {
-      return res.status(404).json({ message: "Bus is not active" });
-    }
-
-    res.status(200).json(bus);
-  } catch (error) {
-    console.error("Get Bus By ID Error:", error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: "Invalid bus ID format" });
-    }
-    
-    res.status(500).json({ 
-      message: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-};
-
-// @desc    Update a bus
-// @route   PUT /api/buses/:id
-// @access  Admin
-const updateBus = async (req, res) => {
+/**
+ * Get bus by ID
+ * GET /api/buses/:id
+ * Public
+ */
+const getBusById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = { ...req.body };
+    if (!id) return res.status(400).json({ success: false, message: 'Bus id is required' });
 
-    // Prevent certain fields from being updated
+    const bus = await Bus.findById(id);
+    if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
+    if (!bus.isActive) return res.status(404).json({ success: false, message: 'Bus is not active' });
+
+    return res.status(200).json({ success: true, bus });
+  } catch (err) {
+    console.error('Get Bus By ID Error:', err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, message: 'Invalid bus ID format' });
+    }
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Update bus
+ * PUT /api/buses/:id
+ * Admin
+ */
+const updateBus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    let updateData = { ...(req.body || {}) };
+
+    // Prevent changing identifiers
     delete updateData.busNumber;
     delete updateData._id;
     delete updateData.createdAt;
 
-    // If seats are being updated, recalculate available seats
-    if (updateData.seats) {
-      const bookedSeats = updateData.seats.filter(seat => seat.isBooked).length;
-      updateData.availableSeats = updateData.totalSeats - bookedSeats;
+    // If totalSeats changes, adjust seats and availableSeats carefully
+    if (updateData.totalSeats != null) {
+      const newTotal = parseInt(updateData.totalSeats, 10);
+      if (isNaN(newTotal) || newTotal <= 0) {
+        return res.status(400).json({ success: false, message: 'totalSeats must be a positive integer' });
+      }
+
+      const bus = await Bus.findById(id);
+      if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
+
+      // If seats array not provided, we will expand or shrink seats accordingly
+      if (!updateData.seats) {
+        const currentSeats = bus.seats || [];
+        const currentTotal = currentSeats.length;
+        if (newTotal > currentTotal) {
+          // append new seats
+          const add = [];
+          for (let i = currentTotal; i < newTotal; i++) {
+            add.push({
+              number: String(i + 1),
+              isBooked: false,
+              bookedBy: null,
+              bookingType: null,
+              bookedAt: null,
+              seatType: 'standard',
+              priceMultiplier: 1.0
+            });
+          }
+          updateData.seats = [...currentSeats.map(s => s.toObject ? s.toObject() : s), ...add];
+        } else if (newTotal < currentTotal) {
+          // shrinking: ensure we are not removing booked seats
+          const toRemove = [];
+          for (let i = newTotal; i < currentTotal; i++) {
+            const seatNum = String(i + 1);
+            const seatObj = currentSeats.find(s => String(s.number) === seatNum);
+            if (seatObj && seatObj.isBooked) {
+              return res.status(400).json({ success: false, message: 'Cannot reduce totalSeats because some trailing seats are booked' });
+            }
+            toRemove.push(seatNum);
+          }
+          // filter seats
+          updateData.seats = currentSeats.filter(s => !toRemove.includes(String(s.number))).map(s => s.toObject ? s.toObject() : s);
+        } else {
+          // same size, nothing to change
+        }
+      }
+
+      // set availableSeats correctly: count seats not booked
+      if (updateData.seats) {
+        const bookedCount = updateData.seats.filter(s => !!s.isBooked).length;
+        updateData.availableSeats = updateData.seats.length - bookedCount;
+      }
+    } else if (updateData.seats) {
+      // If seats array provided directly, recalc availableSeats
+      const bookedCount = updateData.seats.filter(s => !!s.isBooked).length;
+      updateData.availableSeats = updateData.seats.length - bookedCount;
+      updateData.totalSeats = updateData.seats.length;
     }
 
-    const updatedBus = await Bus.findByIdAndUpdate(
-      id, 
-      updateData, 
-      { new: true, runValidators: true }
-    );
+    const updatedBus = await Bus.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+    if (!updatedBus) return res.status(404).json({ success: false, message: 'Bus not found' });
 
-    if (!updatedBus) {
-      return res.status(404).json({ message: "Bus not found" });
+    return res.status(200).json({ success: true, message: 'Bus updated successfully', bus: updatedBus });
+  } catch (err) {
+    console.error('Update Bus Error:', err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, message: 'Invalid bus ID format' });
     }
-
-    res.status(200).json({ 
-      message: "Bus updated successfully", 
-      bus: updatedBus 
-    });
-  } catch (error) {
-    console.error("Update Bus Error:", error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: "Invalid bus ID format" });
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ success: false, message: 'Validation error', error: err.message });
     }
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ 
-        message: "Validation error", 
-        error: error.message 
-      });
-    }
-    
-    res.status(500).json({ 
-      message: "Failed to update bus", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update bus',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Delete a bus (soft delete)
-// @route   DELETE /api/buses/:id
-// @access  Admin
-const deleteBus = async (req, res) => {
+/**
+ * Soft delete bus
+ * DELETE /api/buses/:id
+ * Admin
+ */
+const deleteBus = async (req, res, next) => {
   try {
-    const deletedBus = await Bus.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
-
-    if (!deletedBus) {
-      return res.status(404).json({ message: "Bus not found" });
+    const { id } = req.params;
+    const deletedBus = await Bus.findByIdAndUpdate(id, { isActive: false }, { new: true });
+    if (!deletedBus) return res.status(404).json({ success: false, message: 'Bus not found' });
+    return res.status(200).json({ success: true, message: 'Bus deleted (soft)', bus: deletedBus });
+  } catch (err) {
+    console.error('Delete Bus Error:', err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, message: 'Invalid bus ID format' });
     }
-
-    res.status(200).json({ 
-      message: "Bus deleted successfully",
-      bus: deletedBus
-    });
-  } catch (error) {
-    console.error("Delete Bus Error:", error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: "Invalid bus ID format" });
-    }
-    
-    res.status(500).json({ 
-      message: "Failed to delete bus", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete bus',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Get buses by route
-// @route   GET /api/buses/route
-// @access  Public
-const getBusesByRoute = async (req, res) => {
+/**
+ * Get buses by route
+ * GET /api/buses/route
+ * Public
+ */
+const getBusesByRoute = async (req, res, next) => {
   try {
-    const { from, to, date } = req.query;
+    const { from, to, date } = req.query || {};
 
     if (!from || !to) {
-      return res.status(400).json({ message: "From and to parameters are required" });
+      return res.status(400).json({ success: false, message: 'From and to parameters are required' });
     }
 
-    let filter = {
-      'route.from': { $regex: from, $options: 'i' },
-      'route.to': { $regex: to, $options: 'i' },
+    const filter = {
+      'route.from': { $regex: String(from).trim(), $options: 'i' },
+      'route.to': { $regex: String(to).trim(), $options: 'i' },
       isActive: true,
-      status: "active"
+      status: 'active'
     };
 
-    // If date is provided, filter by date
+    // If date is provided and schedule.departure is a date, try to match day
     if (date) {
-      const startDate = new Date(date);
-      const endDate = new Date(date);
-      endDate.setDate(endDate.getDate() + 1);
-      
-      filter['schedule.departure'] = {
-        $gte: startDate,
-        $lt: endDate
-      };
+      // We will look for buses whose schedule.departure falls on the given date OR frequency includes that day.
+      // This is a simple approach; adjust per your schedule schema.
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      filter['schedule.departure'] = { $gte: start, $lt: end };
     }
 
     const buses = await Bus.find(filter).sort({ 'schedule.departure': 1 });
 
-    res.status(200).json({
-      count: buses.length,
-      buses
-    });
-  } catch (error) {
-    console.error("Get Buses By Route Error:", error);
-    res.status(500).json({ 
-      message: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    return res.status(200).json({ success: true, count: buses.length, buses });
+  } catch (err) {
+    console.error('Get Buses By Route Error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Get bus availability for specific date
-// @route   GET /api/buses/availability/:id
-// @access  Public
-const getBusAvailability = async (req, res) => {
+/**
+ * Get bus availability for a specific date
+ * GET /api/buses/availability/:id?date=YYYY-MM-DD
+ * Public
+ */
+const getBusAvailability = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { date } = req.query;
 
-    if (!date) {
-      return res.status(400).json({ message: "Date parameter is required" });
-    }
+    if (!date) return res.status(400).json({ success: false, message: 'Date parameter is required' });
 
     const bus = await Bus.findById(id);
-    
-    if (!bus) {
-      return res.status(404).json({ message: "Bus not found" });
-    }
+    if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
 
-    // In a real application, you would check bookings for this specific date
-    // For now, we'll return the current seat status
-    const availableSeats = bus.seats.filter(seat => !seat.isBooked).map(seat => seat.number);
+    // Collect seats booked for this bus on the given date (exclude cancelled)
+    const bookings = await Booking.find({
+      bus: mongoose.Types.ObjectId(id),
+      date: String(date),
+      status: { $ne: 'cancelled' }
+    }, 'seatNumbers');
 
-    res.status(200).json({
+    const bookedSeatSet = new Set();
+    bookings.forEach(b => (b.seatNumbers || []).forEach(s => bookedSeatSet.add(String(s))));
+
+    const availableSeatsList = bus.seats.filter(s => !bookedSeatSet.has(String(s.number))).map(s => s.number);
+    const totalSeats = bus.totalSeats || bus.seats.length || 0;
+    const availableSeats = availableSeatsList.length;
+    const occupancyPercentage = totalSeats > 0 ? Math.round(((totalSeats - availableSeats) / totalSeats) * 100) : 0;
+
+    return res.status(200).json({
+      success: true,
       busId: id,
       date,
-      totalSeats: bus.totalSeats,
-      availableSeats: bus.availableSeats,
-      availableSeatsList: availableSeats,
-      occupancyPercentage: bus.occupancyPercentage
+      totalSeats,
+      availableSeats,
+      availableSeatsList,
+      occupancyPercentage
     });
-  } catch (error) {
-    console.error("Get Bus Availability Error:", error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: "Invalid bus ID format" });
+  } catch (err) {
+    console.error('Get Bus Availability Error:', err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, message: 'Invalid bus ID format' });
     }
-    
-    res.status(500).json({ 
-      message: "Server error", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Update bus status
-// @route   PATCH /api/buses/:id/status
-// @access  Private (Admin, Captain)
-const updateBusStatus = async (req, res) => {
+/**
+ * Update bus status
+ * PATCH /api/buses/:id/status
+ * Private (Admin/Captain)
+ */
+const updateBusStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, reason } = req.body;
 
-    const validStatuses = ["active", "maintenance", "out_of_service", "scheduled"];
+    const validStatuses = ['active', 'maintenance', 'out_of_service', 'scheduled'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
+      return res.status(400).json({ success: false, message: 'Invalid status value' });
     }
 
     const updateData = { status };
-    if (reason) {
-      updateData.statusReason = reason;
-    }
+    if (reason) updateData.statusReason = reason;
+    updateData.statusUpdatedAt = new Date();
 
-    const updatedBus = await Bus.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    const updatedBus = await Bus.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+    if (!updatedBus) return res.status(404).json({ success: false, message: 'Bus not found' });
 
-    if (!updatedBus) {
-      return res.status(404).json({ message: "Bus not found" });
+    return res.status(200).json({ success: true, message: 'Bus status updated successfully', bus: updatedBus });
+  } catch (err) {
+    console.error('Update Bus Status Error:', err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, message: 'Invalid bus ID format' });
     }
-
-    res.status(200).json({ 
-      message: "Bus status updated successfully", 
-      bus: updatedBus 
-    });
-  } catch (error) {
-    console.error("Update Bus Status Error:", error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({ message: "Invalid bus ID format" });
-    }
-    
-    res.status(500).json({ 
-      message: "Failed to update bus status", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    return res.status(500).json({ success: false, message: 'Failed to update bus status', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// @desc    Get bus analytics and statistics
-// @route   GET /api/buses/admin/analytics
-// @access  Private (Admin)
-const getBusAnalytics = async (req, res) => {
+/**
+ * Get bus analytics & statistics (Admin)
+ * GET /api/buses/admin/analytics
+ */
+const getBusAnalytics = async (req, res, next) => {
   try {
-    // Basic analytics - you can expand this with more complex queries
     const totalBuses = await Bus.countDocuments();
-    const activeBuses = await Bus.countDocuments({ isActive: true, status: "active" });
-    const maintenanceBuses = await Bus.countDocuments({ status: "maintenance" });
-    const outOfServiceBuses = await Bus.countDocuments({ status: "out_of_service" });
+    const activeBuses = await Bus.countDocuments({ isActive: true, status: 'active' });
+    const maintenanceBuses = await Bus.countDocuments({ status: 'maintenance' });
+    const outOfServiceBuses = await Bus.countDocuments({ status: 'out_of_service' });
+    const scheduledBuses = await Bus.countDocuments({ status: 'scheduled' });
 
-    // Get average occupancy
-    const buses = await Bus.find({ isActive: true });
-    const totalOccupancy = buses.reduce((sum, bus) => sum + bus.occupancyPercentage, 0);
-    const avgOccupancy = totalOccupancy / (buses.length || 1);
+    // Average occupancy - use availableSeats if present
+    const buses = await Bus.find({ isActive: true }, 'availableSeats totalSeats seats');
+    const avgOccupancy = buses.length === 0 ? 0 : Math.round(buses.reduce((sum, b) => {
+      const total = b.totalSeats || (b.seats && b.seats.length) || 0;
+      const avail = (typeof b.availableSeats === 'number') ? b.availableSeats : (b.seats ? b.seats.filter(s => !s.isBooked).length : 0);
+      const occ = total > 0 ? ((total - avail) / total) * 100 : 0;
+      return sum + occ;
+    }, 0) / buses.length);
 
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       totalBuses,
       activeBuses,
       maintenanceBuses,
       outOfServiceBuses,
-      avgOccupancy: Math.round(avgOccupancy),
-      busesByStatus: {
-        active: activeBuses,
-        maintenance: maintenanceBuses,
-        out_of_service: outOfServiceBuses,
-        scheduled: await Bus.countDocuments({ status: "scheduled" })
-      }
+      scheduledBuses,
+      avgOccupancy,
+      busesByStatus: { active: activeBuses, maintenance: maintenanceBuses, out_of_service: outOfServiceBuses, scheduled: scheduledBuses }
     });
-  } catch (error) {
-    console.error("Get Bus Analytics Error:", error);
-    res.status(500).json({ 
-      message: "Failed to fetch bus analytics", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+  } catch (err) {
+    console.error('Get Bus Analytics Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch bus analytics', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// @desc    Export buses data
-// @route   GET /api/buses/admin/export
-// @access  Private (Admin)
-const exportBuses = async (req, res) => {
+/**
+ * Export buses
+ * GET /api/buses/admin/export?format=csv
+ * Admin
+ */
+const exportBuses = async (req, res, next) => {
   try {
+    const { format = 'json' } = req.query;
     const buses = await Bus.find().sort({ createdAt: -1 });
 
-    // Simple CSV export - you might want to use a library like json2csv for production
-    const csvData = buses.map(bus => ({
-      'Bus Number': bus.busNumber,
-      'Bus Name': bus.busName,
-      'Operator': bus.operator,
-      'Total Seats': bus.totalSeats,
-      'Available Seats': bus.availableSeats,
-      'Route': `${bus.route.from} to ${bus.route.to}`,
-      'Status': bus.status,
-      'Base Price': bus.basePrice,
-      'Created At': bus.createdAt.toISOString().split('T')[0]
-    }));
+    if (format === 'csv') {
+      const rows = [['Bus Number', 'Bus Name', 'Operator', 'Total Seats', 'Available Seats', 'Route', 'Status', 'Base Price', 'Created At']];
+      buses.forEach(b => {
+        rows.push([
+          b.busNumber || '',
+          b.busName || '',
+          b.operator || '',
+          b.totalSeats || '',
+          b.availableSeats || '',
+          `${b.route?.from || ''} to ${b.route?.to || ''}`,
+          b.status || '',
+          b.basePrice || '',
+          b.createdAt ? b.createdAt.toISOString().split('T')[0] : ''
+        ]);
+      });
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      res.header('Content-Type', 'text/csv');
+      res.attachment('buses_export.csv');
+      return res.send(csv);
+    }
 
-    res.status(200).json({
-      message: "Export successful",
-      data: csvData,
-      total: buses.length
-    });
-  } catch (error) {
-    console.error("Export Buses Error:", error);
-    res.status(500).json({ 
-      message: "Failed to export buses data", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    // default JSON
+    return res.status(200).json({ success: true, total: buses.length, data: buses });
+  } catch (err) {
+    console.error('Export Buses Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to export buses data', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
+  }
+};
+
+/**
+ * Get featured routes
+ * GET /api/buses/route/featured
+ * Public
+ */
+const getFeaturedRoutes = async (req, res, next) => {
+  try {
+    const buses = await Bus.find({ isActive: true, isFeatured: true }).sort({ createdAt: -1 }).limit(6);
+    return res.status(200).json({ success: true, count: buses.length, buses });
+  } catch (err) {
+    console.error('Get Featured Routes Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch featured routes', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
+  }
+};
+
+/**
+ * Get popular routes
+ * GET /api/buses/route/popular?limit=6
+ * Public
+ * Uses booking counts to determine popularity if possible, otherwise falls back to isPopular flag.
+ */
+const getPopularRoutes = async (req, res, next) => {
+  try {
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit || '6', 10)));
+
+    // Prefer computing by booking counts
+    const popularByBookings = await Booking.aggregate([
+      { $match: { status: { $ne: 'cancelled' } } },
+      { $group: { _id: '$bus', bookings: { $sum: 1 } } },
+      { $sort: { bookings: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'buses',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'bus'
+        }
+      },
+      { $unwind: { path: '$bus', preserveNullAndEmptyArrays: false } },
+      { $replaceRoot: { newRoot: { bus: '$bus', bookings: '$bookings' } } }
+    ]);
+
+    if (popularByBookings && popularByBookings.length > 0) {
+      const buses = popularByBookings.map(p => ({ ...p.bus.toObject ? p.bus.toObject() : p.bus, bookings: p.bookings }));
+      return res.status(200).json({ success: true, count: buses.length, buses });
+    }
+
+    // Fallback to isPopular flag
+    const fallback = await Bus.find({ isActive: true, isPopular: true }).sort({ createdAt: -1 }).limit(limit);
+    return res.status(200).json({ success: true, count: fallback.length, buses: fallback });
+  } catch (err) {
+    console.error('Get Popular Routes Error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch popular routes', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
@@ -519,5 +615,7 @@ module.exports = {
   getBusAvailability,
   updateBusStatus,
   getBusAnalytics,
-  exportBuses
+  exportBuses,
+  getFeaturedRoutes,
+  getPopularRoutes
 };

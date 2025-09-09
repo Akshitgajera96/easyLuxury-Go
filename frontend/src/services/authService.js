@@ -1,12 +1,13 @@
 // src/services/authService.js
 import { apiCall, AUTH_API } from './api';
 
+
 // ✅ Register a new user
 export const registerUser = async (userData) => {
   try {
     return await apiCall('post', AUTH_API.REGISTER, userData);
   } catch (error) {
-    throw error || { message: 'Registration failed. Please try again.' };
+    throw error?.response?.data || { message: 'Registration failed. Please try again.' };
   }
 };
 
@@ -14,7 +15,7 @@ export const registerUser = async (userData) => {
 export const loginUser = async (credentials) => {
   try {
     const response = await apiCall('post', AUTH_API.LOGIN, credentials);
-    
+
     // Store tokens if available
     if (response.accessToken) {
       localStorage.setItem('accessToken', response.accessToken);
@@ -25,23 +26,22 @@ export const loginUser = async (credentials) => {
     if (response.user) {
       localStorage.setItem('user', JSON.stringify(response.user));
     }
-    
+
     return response;
   } catch (error) {
-    throw error || { message: 'Login failed. Please try again.' };
+    throw error?.response?.data || { message: 'Login failed. Please try again.' };
   }
 };
 
 // ✅ Logout user
 export const logoutUser = async () => {
   try {
-    // Call backend logout if needed
+    // Backend logout if implemented
     await apiCall('post', AUTH_API.LOGOUT);
   } catch (error) {
-    console.error('Logout API error:', error);
-    // Continue with client-side cleanup even if API call fails
+    console.warn('Logout API error:', error?.response?.data || error.message);
   } finally {
-    // Always clear client-side storage
+    // Always clear local storage
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -53,18 +53,18 @@ export const logoutUser = async () => {
 export const refreshToken = async (refreshToken) => {
   try {
     const response = await apiCall('post', AUTH_API.REFRESH_TOKEN, { refreshToken });
-    
+
     if (response.accessToken) {
       localStorage.setItem('accessToken', response.accessToken);
     }
-    
+
     return response;
   } catch (error) {
     // If refresh fails, clear storage and redirect to login
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-    throw error || { message: 'Session expired. Please login again.' };
+    throw error?.response?.data || { message: 'Session expired. Please login again.' };
   }
 };
 
@@ -73,7 +73,7 @@ export const verifyEmail = async (token) => {
   try {
     return await apiCall('post', AUTH_API.VERIFY_EMAIL, { token });
   } catch (error) {
-    throw error || { message: 'Email verification failed.' };
+    throw error?.response?.data || { message: 'Email verification failed.' };
   }
 };
 
@@ -82,7 +82,7 @@ export const resendVerification = async (email) => {
   try {
     return await apiCall('post', AUTH_API.RESEND_VERIFICATION, { email });
   } catch (error) {
-    throw error || { message: 'Failed to resend verification email.' };
+    throw error?.response?.data || { message: 'Failed to resend verification email.' };
   }
 };
 
@@ -91,7 +91,7 @@ export const forgotPassword = async (email) => {
   try {
     return await apiCall('post', AUTH_API.FORGOT_PASSWORD, { email });
   } catch (error) {
-    throw error || { message: 'Failed to send password reset email.' };
+    throw error?.response?.data || { message: 'Failed to send password reset email.' };
   }
 };
 
@@ -100,7 +100,7 @@ export const resetPassword = async (resetData) => {
   try {
     return await apiCall('post', AUTH_API.RESET_PASSWORD, resetData);
   } catch (error) {
-    throw error || { message: 'Failed to reset password.' };
+    throw error?.response?.data || { message: 'Failed to reset password.' };
   }
 };
 
@@ -109,7 +109,7 @@ export const getProfile = async () => {
   try {
     return await apiCall('get', AUTH_API.GET_ME);
   } catch (error) {
-    throw error || { message: 'Failed to fetch user profile.' };
+    throw error?.response?.data || { message: 'Failed to fetch user profile.' };
   }
 };
 
@@ -117,15 +117,14 @@ export const getProfile = async () => {
 export const updateProfile = async (profileData) => {
   try {
     const response = await apiCall('put', AUTH_API.UPDATE_PROFILE, profileData);
-    
-    // Update local storage if user data is returned
+
     if (response.user) {
       localStorage.setItem('user', JSON.stringify(response.user));
     }
-    
+
     return response;
   } catch (error) {
-    throw error || { message: 'Failed to update profile.' };
+    throw error?.response?.data || { message: 'Failed to update profile.' };
   }
 };
 
@@ -134,7 +133,7 @@ export const changePassword = async (passwordData) => {
   try {
     return await apiCall('put', AUTH_API.CHANGE_PASSWORD, passwordData);
   } catch (error) {
-    throw error || { message: 'Failed to change password.' };
+    throw error?.response?.data || { message: 'Failed to change password.' };
   }
 };
 
@@ -143,11 +142,11 @@ export const checkSession = async () => {
   try {
     return await apiCall('get', AUTH_API.CHECK_SESSION);
   } catch (error) {
-    throw error || { message: 'Session check failed.' };
+    throw error?.response?.data || { message: 'Session check failed.' };
   }
 };
 
-// ✅ Utility function to get stored user data
+// ✅ Utility: get stored user
 export const getStoredUser = () => {
   try {
     const user = localStorage.getItem('user');
@@ -158,12 +157,12 @@ export const getStoredUser = () => {
   }
 };
 
-// ✅ Utility function to get stored token
+// ✅ Utility: get stored token
 export const getStoredToken = () => {
   return localStorage.getItem('accessToken');
 };
 
-// ✅ Utility function to check if user is authenticated
+// ✅ Utility: check if user is authenticated
 export const isAuthenticated = () => {
   const token = getStoredToken();
   const user = getStoredUser();

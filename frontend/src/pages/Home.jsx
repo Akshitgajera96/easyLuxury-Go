@@ -69,7 +69,11 @@ const Home = () => {
       setFeaturedRoutes(featured);
     } catch (error) {
       toast.error("Failed to load route data");
-      console.error("Initial data error:", error);
+      console.error("Initial data error:",
+        error.response?.status,
+        error.response?.statusText,
+        error.response?.data || error.message,
+        error);
     } finally {
       setLoading(false);
     }

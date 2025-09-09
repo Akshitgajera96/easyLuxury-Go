@@ -70,7 +70,7 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use('/api/', limiter);
+app.use('/', limiter);
 
 // More aggressive rate limiting for auth routes
 const authLimiter = rateLimit({
@@ -82,7 +82,7 @@ const authLimiter = rateLimit({
   }
 });
 
-app.use('/api/auth/', authLimiter);
+app.use('/auth/', authLimiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -122,25 +122,25 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/buses', busRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/refunds', refundRoutes);
-app.use('/api/captains', captainRoutes);
+// API Routes (without /api prefix)
+app.use('/auth', authRoutes);
+app.use('/buses', busRoutes);
+app.use('/bookings', bookingRoutes);
+app.use('/users', userRoutes);
+app.use('/refunds', refundRoutes);
+app.use('/captains', captainRoutes);
 
 // API documentation route
-app.get('/api/docs', (req, res) => {
+app.get('/docs', (req, res) => {
   res.json({
     message: 'EasyLuxury Go API Documentation',
     endpoints: {
-      auth: '/api/auth',
-      buses: '/api/buses',
-      bookings: '/api/bookings',
-      users: '/api/users',
-      refunds: '/api/refunds',
-      captains: '/api/captains'
+      auth: '/auth',
+      buses: '/buses',
+      bookings: '/bookings',
+      users: '/users',
+      refunds: '/refunds',
+      captains: '/captains'
     },
     version: '1.0.0'
   });
@@ -235,12 +235,12 @@ server.listen(PORT, () => {
     ⏰ Started at: ${new Date().toISOString()}
     
     📋 Available Routes:
-    🔐 Auth: http://localhost:${PORT}/api/auth
-    🚌 Buses: http://localhost:${PORT}/api/buses
-    🎫 Bookings: http://localhost:${PORT}/api/bookings
-    👤 Users: http://localhost:${PORT}/api/users
-    💰 Refunds: http://localhost:${PORT}/api/refunds
-    🚗 Captains: http://localhost:${PORT}/api/captains
+    🔐 Auth: http://localhost:${PORT}/auth
+    🚌 Buses: http://localhost:${PORT}/buses
+    🎫 Bookings: http://localhost:${PORT}/bookings
+    👤 Users: http://localhost:${PORT}/users
+    💰 Refunds: http://localhost:${PORT}/refunds
+    🚗 Captains: http://localhost:${PORT}/captains
     ❤️ Health: http://localhost:${PORT}/health
   `);
 });

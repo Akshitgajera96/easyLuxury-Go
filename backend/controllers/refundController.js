@@ -1,475 +1,225 @@
-// const Ticket = require("../models/Ticket");
-// const Booking = require("../models/Booking");
-// const WalletTransaction = require("../models/WalletTransaction");
-// const User = require("../models/User");
-// const { calculateRefundAmount } = require("../utils/refundCalculator");
+// backend/controllers/refundController.js
+const mongoose = require('mongoose');
+const Ticket = require('../models/Ticket');
+const Booking = require('../models/Booking');
+const WalletTransaction = require('../models/WalletTransaction');
+const User = require('../models/User');
+let Refund;
+try { Refund = require('../models/Refund'); } catch (e) { Refund = null; }
 
-// // Cancel a ticket and process refund
-// exports.cancelTicket = async (req, res) => {
-//   try {
-//     const ticketId = req.params.id;
-//     const userId = req.user.id;
-//     const { cancellationReason } = req.body;
+/**
+ * Helpers
+ */
+function parseDateTime(dateOrBooking, time) {
+  // Accepts booking.departureTime (ISO or string) or (date, time)
+  try {
+    if (!dateOrBooking) return null;
+    if (typeof dateOrBooking === 'string' && dateOrBooking.includes('T')) {
+      const d = new Date(dateOrBooking);
+      return isNaN(d) ? null : d;
+    }
+    // if booking object passed with departureTime
+    if (typeof dateOrBooking === 'object' && dateOrBooking.departureTime) {
+      const d = new Date(dateOrBooking.departureTime);
+      return isNaN(d) ? null : d;
+    }
+    // if passed date string and time
+    if (typeof dateOrBooking === 'string' && time) {
+      const combined = `${dateOrBooking}T${time}`;
+      const d = new Date(combined);
+      return isNaN(d) ? null : d;
+    }
+    const d = new Date(dateOrBooking);
+    return isNaN(d) ? null : d;
+  } catch (e) {
+    return null;
+  }
+}
 
-//     // Validate input
-//     if (!ticketId) {
-//       return res.status(400).json({ msg: "Ticket ID is required" });
-//     }
-
-//     // Find the ticket and populate related data
-//     const ticket = await Ticket.findById(ticketId)
-//       .populate('user', 'name email walletBalance')
-//       .populate('booking', 'bus departureTime status');
-
-//     if (!ticket) {
-//       return res.status(404).json({ msg: "Ticket not found" });
-//     }
-
-//     if (ticket.user._id.toString() !== userId) {
-//       return res.status(403).json({ msg: "Unauthorized to cancel this ticket" });
-//     }
-
-//     if (ticket.status === 'cancelled') {
-//       return res.status(400).json({ msg: "Ticket is already cancelled" });
-//     }
-
-//     // Check if the associated booking exists and is cancellable
-//     const booking = await Booking.findById(ticket.booking);
-//     if (!booking) {
-//       return res.status(404).json({ msg: "Associated booking not found" });
-//     }
-
-//     if (booking.status === 'cancelled') {
-//       return res.status(400).json({ msg: "Booking is already cancelled" });
-//     }
-
-//     // Calculate refund amount based on cancellation policy
-//     const refundDetails = await calculateRefundAmount(booking, ticket);
-    
-//     if (!refundDetails.refundable) {
-//       return res.status(400).json({ 
-//         msg: "Ticket is not refundable",
-//         details: refundDetails.reason
-//       });
-//     }
-
-//     // Start a transaction session for atomic operations
-//     const session = await Ticket.startSession();
-//     session.startTransaction();
-
-//     try {
-//       // Update ticket status
-//       ticket.status = 'cancelled';
-//       ticket.cancelledAt = new Date();
-//       ticket.cancellationReason = cancellationReason || 'User requested cancellation';
-//       ticket.refundAmount = refundDetails.amount;
-//       await ticket.save({ session });
-
-//       // Update booking status if all tickets are cancelled
-//       const activeTickets = await Ticket.countDocuments({
-//         booking: ticket.booking,
-//         status: { $ne: 'cancelled' }
-//       }).session(session);
-
-//       if (activeTickets === 0) {
-//         booking.status = 'cancelled';
-//         await booking.save({ session });
-//       }
-
-//       // Record refund transaction in wallet
-//       const refundTransaction = new WalletTransaction({
-//         user: userId,
-//         amount: refundDetails.amount,
-//         type: "refund",
-//         description: `Refund for canceled ticket ${ticket.ticketNumber}`,
-//         referenceType: 'ticket',
-//         referenceId: ticket._id,
-//         status: 'completed'
-//       });
-
-//       await refundTransaction.save({ session });
-
-//       // Update user's wallet balance
-//       await User.findByIdAndUpdate(
-//         userId,
-//         { 
-//           $inc: { walletBalance: refundDetails.amount },
-//           $push: { walletTransactions: refundTransaction._id }
-//         },
-//         { session }
-//       );
-
-//       // Commit the transaction
-//       await session.commitTransaction();
-//       session.endSession();
-
-//       // Emit socket event for real-time updates
-//       // require('../sockets/bookingSocket').emitRefundProcessed(userId, refundTransaction);
-
-//       return res.status(200).json({
-//         msg: "Ticket canceled and refund processed successfully",
-//         refundAmount: refundDetails.amount,
-//         refundPercentage: refundDetails.percentage,
-//         ticketNumber: ticket.ticketNumber,
-//         transactionId: refundTransaction._id
-//       });
-
-//     } catch (transactionError) {
-//       // If anything fails, abort the transaction
-//       await session.abortTransaction();
-//       session.endSession();
-//       throw transactionError;
-//     }
-
-//   } catch (err) {
-//     console.error("Refund Error:", err);
-    
-//     if (err.name === 'CastError') {
-//       return res.status(400).json({ msg: "Invalid ticket ID format" });
-//     }
-    
-//     return res.status(500).json({ 
-//       msg: "Server error during refund processing", 
-//       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-//     });
-//   }
-// };
-
-// // Get refund history for a user
-// exports.getRefundHistory = async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const { page = 1, limit = 10 } = req.query;
-
-//     const refunds = await WalletTransaction.find({
-//       user: userId,
-//       type: 'refund'
-//     })
-//     .populate('referenceId', 'ticketNumber')
-//     .sort({ createdAt: -1 })
-//     .limit(limit * 1)
-//     .skip((page - 1) * limit);
-
-//     const total = await WalletTransaction.countDocuments({
-//       user: userId,
-//       type: 'refund'
-//     });
-
-//     res.status(200).json({
-//       total,
-//       page: parseInt(page),
-//       pages: Math.ceil(total / limit),
-//       refunds
-//     });
-//   } catch (err) {
-//     console.error("Get Refund History Error:", err);
-//     res.status(500).json({ 
-//       msg: "Server error", 
-//       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-//     });
-//   }
-// };
-
-// // Get specific refund details
-// exports.getRefundDetails = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userId = req.user.id;
-
-//     const refund = await WalletTransaction.findOne({
-//       _id: id,
-//       user: userId,
-//       type: 'refund'
-//     }).populate('referenceId', 'ticketNumber bus seatNumber price');
-
-//     if (!refund) {
-//       return res.status(404).json({ msg: "Refund transaction not found" });
-//     }
-
-//     res.status(200).json(refund);
-//   } catch (err) {
-//     console.error("Get Refund Details Error:", err);
-    
-//     if (err.name === 'CastError') {
-//       return res.status(400).json({ msg: "Invalid refund ID format" });
-//     }
-    
-//     res.status(500).json({ 
-//       msg: "Server error", 
-//       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-//     });
-//   }
-// };
-
-// // Admin: Process manual refund
-// exports.processManualRefund = async (req, res) => {
-//   try {
-//     const { ticketId, refundAmount, reason } = req.body;
-
-//     if (!ticketId || !refundAmount || refundAmount <= 0) {
-//       return res.status(400).json({ 
-//         msg: "Valid ticket ID and refund amount are required" 
-//       });
-//     }
-
-//     const ticket = await Ticket.findById(ticketId)
-//       .populate('user', 'name email walletBalance');
-
-//     if (!ticket) {
-//       return res.status(404).json({ msg: "Ticket not found" });
-//     }
-
-//     if (ticket.status === 'cancelled') {
-//       return res.status(400).json({ msg: "Ticket is already cancelled" });
-//     }
-
-//     const session = await Ticket.startSession();
-//     session.startTransaction();
-
-//     try {
-//       // Update ticket
-//       ticket.status = 'cancelled';
-//       ticket.cancelledAt = new Date();
-//       ticket.cancellationReason = reason || 'Admin initiated refund';
-//       ticket.refundAmount = refundAmount;
-//       await ticket.save({ session });
-
-//       // Create refund transaction
-//       const refundTransaction = new WalletTransaction({
-//         user: ticket.user._id,
-//         amount: refundAmount,
-//         type: "refund",
-//         description: `Manual refund for ticket ${ticket.ticketNumber}: ${reason}`,
-//         referenceType: 'ticket',
-//         referenceId: ticket._id,
-//         status: 'completed',
-//         processedBy: req.user.id
-//       });
-
-//       await refundTransaction.save({ session });
-
-//       // Update user wallet
-//       await User.findByIdAndUpdate(
-//         ticket.user._id,
-//         { 
-//           $inc: { walletBalance: refundAmount },
-//           $push: { walletTransactions: refundTransaction._id }
-//         },
-//         { session }
-//       );
-
-//       await session.commitTransaction();
-//       session.endSession();
-
-//       res.status(200).json({
-//         msg: "Manual refund processed successfully",
-//         refundAmount,
-//         ticketNumber: ticket.ticketNumber,
-//         transactionId: refundTransaction._id
-//       });
-
-//     } catch (transactionError) {
-//       await session.abortTransaction();
-//       session.endSession();
-//       throw transactionError;
-//     }
-
-//   } catch (err) {
-//     console.error("Manual Refund Error:", err);
-    
-//     if (err.name === 'CastError') {
-//       return res.status(400).json({ msg: "Invalid ticket ID format" });
-//     }
-    
-//     res.status(500).json({ 
-//       msg: "Server error during manual refund processing", 
-//       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-//     });
-//   }
-// };
-
-
-
-
-const Ticket = require("../models/Ticket");
-const Booking = require("../models/Booking");
-const WalletTransaction = require("../models/WalletTransaction");
-const User = require("../models/User");
-const Refund = require("../models/Refund"); // ✅ Make sure this model exists
-
-// ✅ calculateRefund function directly in controller
-const calculateRefund = async (booking, ticket) => {
+/**
+ * Refund policy calculation - can be customized or moved to util
+ */
+async function calculateRefund(booking, ticket) {
+  // Determine departure time; booking may have departureTime or date+time
+  const departureTime = parseDateTime(booking.departureTime || booking.date || booking);
   const now = new Date();
-  const departureTime = new Date(booking.departureTime);
-  const timeDifference = departureTime - now;
-  const hoursUntilDeparture = timeDifference / (1000 * 60 * 60);
+  if (!departureTime) {
+    // If we can't compute departure time, disallow refund (safe default)
+    return { refundable: false, amount: 0, percentage: 0, reason: 'Unable to determine departure time' };
+  }
+  const hoursUntilDeparture = (departureTime - now) / (1000 * 60 * 60);
+  const totalPaid = Number(ticket.paidAmount ?? booking.totalAmount ?? 0);
 
-  // Calculate total paid amount for this ticket
-  const totalPaid = ticket.paidAmount || booking.totalAmount;
+  if (isNaN(totalPaid)) {
+    return { refundable: false, amount: 0, percentage: 0, reason: 'Unable to determine paid amount' };
+  }
 
   if (hoursUntilDeparture > 48) {
-    // More than 48 hours before departure - 80% refund
-    return {
-      refundable: true,
-      amount: totalPaid * 0.8,
-      percentage: 80,
-      reason: "Refund processed (80% of fare)"
-    };
+    return { refundable: true, amount: +(totalPaid * 0.8).toFixed(2), percentage: 80, reason: 'Refund 80% (>48 hrs before departure)' };
   } else if (hoursUntilDeparture > 24) {
-    // 24-48 hours before departure - 50% refund
-    return {
-      refundable: true,
-      amount: totalPaid * 0.5,
-      percentage: 50,
-      reason: "Refund processed (50% of fare)"
-    };
+    return { refundable: true, amount: +(totalPaid * 0.5).toFixed(2), percentage: 50, reason: 'Refund 50% (24-48 hrs)' };
   } else if (hoursUntilDeparture > 4) {
-    // 4-24 hours before departure - 25% refund
-    return {
-      refundable: true,
-      amount: totalPaid * 0.25,
-      percentage: 25,
-      reason: "Refund processed (25% of fare)"
-    };
+    return { refundable: true, amount: +(totalPaid * 0.25).toFixed(2), percentage: 25, reason: 'Refund 25% (4-24 hrs)' };
   } else {
-    // Less than 4 hours before departure - no refund
-    return {
-      refundable: false,
-      amount: 0,
-      percentage: 0,
-      reason: "No refund available (less than 4 hours before departure)"
-    };
+    return { refundable: false, amount: 0, percentage: 0, reason: 'No refund (<4 hrs before departure)' };
   }
-};
+}
 
-// Cancel a ticket and process refund
-exports.cancelTicket = async (req, res) => {
+/**
+ * Cancel ticket & process automatic refund (user)
+ * POST /api/refunds/cancel/:id
+ */
+exports.cancelTicket = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const ticketId = req.params.id;
-    const userId = req.user.id;
-    const { cancellationReason } = req.body;
+    const userId = req.user?.id || req.userId;
+    const { cancellationReason } = req.body || {};
 
     if (!ticketId) {
-      return res.status(400).json({ msg: "Ticket ID is required" });
-    }
-
-    const ticket = await Ticket.findById(ticketId)
-      .populate("user", "name email walletBalance")
-      .populate("booking", "bus departureTime status totalAmount");
-
-    if (!ticket) {
-      return res.status(404).json({ msg: "Ticket not found" });
-    }
-
-    if (ticket.user._id.toString() !== userId) {
-      return res.status(403).json({ msg: "Unauthorized to cancel this ticket" });
-    }
-
-    if (ticket.status === "cancelled") {
-      return res.status(400).json({ msg: "Ticket is already cancelled" });
-    }
-
-    const booking = await Booking.findById(ticket.booking);
-    if (!booking) {
-      return res.status(404).json({ msg: "Associated booking not found" });
-    }
-
-    if (booking.status === "cancelled") {
-      return res.status(400).json({ msg: "Booking is already cancelled" });
-    }
-
-    // ✅ Use the calculateRefund function
-    const refundDetails = await calculateRefund(booking, ticket);
-
-    if (!refundDetails.refundable) {
-      return res.status(400).json({
-        msg: "Ticket is not refundable",
-        details: refundDetails.reason,
-      });
-    }
-
-    const session = await Ticket.startSession();
-    session.startTransaction();
-
-    try {
-      ticket.status = "cancelled";
-      ticket.cancelledAt = new Date();
-      ticket.cancellationReason =
-        cancellationReason || "User requested cancellation";
-      ticket.refundAmount = refundDetails.amount;
-      await ticket.save({ session });
-
-      const activeTickets = await Ticket.countDocuments({
-        booking: ticket.booking,
-        status: { $ne: "cancelled" },
-      }).session(session);
-
-      if (activeTickets === 0) {
-        booking.status = "cancelled";
-        await booking.save({ session });
-      }
-
-      const refundTransaction = new WalletTransaction({
-        user: userId,
-        amount: refundDetails.amount,
-        type: "refund",
-        description: `Refund for canceled ticket ${ticket.ticketNumber}`,
-        referenceType: "ticket",
-        referenceId: ticket._id,
-        status: "completed",
-      });
-
-      await refundTransaction.save({ session });
-
-      await User.findByIdAndUpdate(
-        userId,
-        {
-          $inc: { walletBalance: refundDetails.amount },
-          $push: { walletTransactions: refundTransaction._id },
-        },
-        { session }
-      );
-
-      await session.commitTransaction();
-      session.endSession();
-
-      return res.status(200).json({
-        msg: "Ticket canceled and refund processed successfully",
-        refundAmount: refundDetails.amount,
-        refundPercentage: refundDetails.percentage,
-        ticketNumber: ticket.ticketNumber,
-        transactionId: refundTransaction._id,
-      });
-    } catch (transactionError) {
       await session.abortTransaction();
       session.endSession();
-      throw transactionError;
+      return res.status(400).json({ success: false, msg: 'Ticket ID is required' });
     }
-  } catch (err) {
-    console.error("Refund Error:", err);
-
-    if (err.name === "CastError") {
-      return res.status(400).json({ msg: "Invalid ticket ID format" });
+    if (!userId) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(401).json({ success: false, msg: 'Authentication required' });
     }
 
-    return res.status(500).json({
-      msg: "Server error during refund processing",
-      error:
-        process.env.NODE_ENV === "development"
-          ? err.message
-          : "Internal server error",
+    const ticket = await Ticket.findById(ticketId).populate('user', 'name email walletBalance').populate('booking', 'departureTime totalAmount status').session(session);
+    if (!ticket) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, msg: 'Ticket not found' });
+    }
+
+    if (String(ticket.user._id) !== String(userId)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({ success: false, msg: 'Unauthorized to cancel this ticket' });
+    }
+
+    if (ticket.status === 'cancelled') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Ticket is already cancelled' });
+    }
+
+    const booking = await Booking.findById(ticket.booking).session(session);
+    if (!booking) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, msg: 'Associated booking not found' });
+    }
+
+    if (booking.status === 'cancelled') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Booking is already cancelled' });
+    }
+
+    const refundDetails = await calculateRefund(booking, ticket);
+    if (!refundDetails.refundable) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Ticket is not refundable', details: refundDetails.reason });
+    }
+
+    // Mark ticket cancelled
+    ticket.status = 'cancelled';
+    ticket.cancelledAt = new Date();
+    ticket.cancellationReason = cancellationReason || 'User requested cancellation';
+    ticket.refundAmount = refundDetails.amount;
+    await ticket.save({ session });
+
+    // If no active tickets remain for booking => cancel booking
+    const activeTicketCount = await Ticket.countDocuments({ booking: ticket.booking, status: { $ne: 'cancelled' } }).session(session);
+    if (activeTicketCount === 0) {
+      booking.status = 'cancelled';
+      await booking.save({ session });
+    }
+
+    // Create wallet transaction (refund)
+    const refundTransaction = new WalletTransaction({
+      user: userId,
+      amount: refundDetails.amount,
+      type: 'refund',
+      description: `Refund for cancelled ticket ${ticket.ticketNumber || ticket._id}`,
+      referenceType: 'ticket',
+      referenceId: ticket._id,
+      status: 'completed',
+      processedAt: new Date()
     });
+
+    await refundTransaction.save({ session });
+
+    // Update user wallet
+    await User.findByIdAndUpdate(
+      userId,
+      { $inc: { walletBalance: refundDetails.amount }, $push: { walletTransactions: refundTransaction._id } },
+      { session }
+    );
+
+    // Optionally persist Refund record (if model exists)
+    if (Refund) {
+      try {
+        await Refund.create([{
+          user: userId,
+          ticket: ticket._id,
+          booking: booking._id,
+          amount: refundDetails.amount,
+          percentage: refundDetails.percentage,
+          status: 'completed',
+          reason: refundDetails.reason,
+          processedAt: new Date()
+        }], { session });
+      } catch (e) {
+        // non-fatal — log and continue
+        console.warn('Failed to create Refund record:', e.message || e);
+      }
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Optionally emit a socket event here (if you have socket integration)
+    // require('../sockets/bookingSocket').emitRefundProcessed(userId, refundTransaction);
+
+    return res.status(200).json({
+      success: true,
+      msg: 'Ticket cancelled and refund processed successfully',
+      refundAmount: refundDetails.amount,
+      refundPercentage: refundDetails.percentage,
+      ticketNumber: ticket.ticketNumber || ticket._id,
+      transactionId: refundTransaction._id
+    });
+  } catch (err) {
+    try { await session.abortTransaction(); } catch (e) { /* ignore */ }
+    session.endSession();
+    console.error('Refund Error:', err);
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, msg: 'Invalid ticket ID format' });
+    }
+    return res.status(500).json({ success: false, msg: 'Server error during refund processing', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get refund history
-exports.getRefundHistory = async (req, res) => {
+/**
+ * Get refund history for current user
+ * GET /api/refunds/history
+ */
+exports.getRefundHistory = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const { page = 1, limit = 10, status, startDate, endDate, type } = req.query;
+    const userId = req.user?.id || req.userId;
+    if (!userId) return res.status(401).json({ success: false, msg: 'Authentication required' });
 
-    const filter = { user: userId };
-    
+    const { page = 1, limit = 10, status, startDate, endDate, type } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10)));
+
+    const filter = { user: userId, type: 'refund' };
     if (status) filter.status = status;
     if (type) filter.refundType = type;
     if (startDate || endDate) {
@@ -478,125 +228,138 @@ exports.getRefundHistory = async (req, res) => {
       if (endDate) filter.createdAt.$lte = new Date(endDate);
     }
 
-    const refunds = await WalletTransaction.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const [refunds, total] = await Promise.all([
+      WalletTransaction.find(filter).populate('referenceId').sort({ createdAt: -1 }).limit(limitNum).skip((pageNum - 1) * limitNum),
+      WalletTransaction.countDocuments(filter)
+    ]);
 
-    const total = await WalletTransaction.countDocuments(filter);
-
-    res.status(200).json({
-      refunds,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total
-    });
+    return res.status(200).json({ success: true, refunds, total, currentPage: pageNum, totalPages: Math.ceil(total / limitNum) });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Get Refund History Error:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get refund details by ID
-exports.getRefundDetails = async (req, res) => {
+/**
+ * Get refund details (user or admin)
+ * GET /api/refunds/:id
+ */
+exports.getRefundDetails = async (req, res, next) => {
   try {
     const refundId = req.params.id;
-    const userId = req.user.id;
-    const userRole = req.user.role;
+    const userId = req.user?.id || req.userId;
+    const userRole = req.user?.role || 'user';
 
-    const refund = await WalletTransaction.findById(refundId)
-      .populate("user", "name email")
-      .populate("referenceId");
+    if (!refundId) return res.status(400).json({ success: false, msg: 'Refund ID required' });
 
-    if (!refund) {
-      return res.status(404).json({ msg: "Refund not found" });
+    const refund = await WalletTransaction.findById(refundId).populate('user', 'name email').populate('referenceId');
+    if (!refund) return res.status(404).json({ success: false, msg: 'Refund not found' });
+
+    // Ownership check
+    if (String(refund.user._id) !== String(userId) && userRole !== 'admin') {
+      return res.status(403).json({ success: false, msg: 'Unauthorized to view this refund' });
     }
 
-    // Check if user owns the refund or is admin
-    if (refund.user._id.toString() !== userId && userRole !== "admin") {
-      return res.status(403).json({ msg: "Unauthorized to view this refund" });
-    }
-
-    res.status(200).json(refund);
+    return res.status(200).json({ success: true, refund });
   } catch (err) {
-    if (err.name === "CastError") {
-      return res.status(400).json({ msg: "Invalid refund ID format" });
-    }
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Get Refund Details Error:', err);
+    if (err.name === 'CastError') return res.status(400).json({ success: false, msg: 'Invalid refund ID format' });
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Process manual refund (admin)
-exports.processManualRefund = async (req, res) => {
+/**
+ * Process manual refund (admin)
+ * POST /api/refunds/manual
+ */
+exports.processManualRefund = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { ticketId, refundAmount, reason } = req.body;
-    const adminId = req.user.id;
-
-    const ticket = await Ticket.findById(ticketId)
-      .populate("user", "name email walletBalance")
-      .populate("booking", "departureTime");
-
-    if (!ticket) {
-      return res.status(404).json({ msg: "Ticket not found" });
-    }
-
-    if (ticket.status !== "cancelled") {
-      return res.status(400).json({ msg: "Ticket is not cancelled" });
-    }
-
-    const session = await Ticket.startSession();
-    session.startTransaction();
-
-    try {
-      const refundTransaction = new WalletTransaction({
-        user: ticket.user._id,
-        amount: refundAmount,
-        type: "refund",
-        description: `Manual refund: ${reason}`,
-        referenceType: "ticket",
-        referenceId: ticket._id,
-        status: "completed",
-        processedBy: adminId
-      });
-
-      await refundTransaction.save({ session });
-
-      await User.findByIdAndUpdate(
-        ticket.user._id,
-        {
-          $inc: { walletBalance: refundAmount },
-          $push: { walletTransactions: refundTransaction._id },
-        },
-        { session }
-      );
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.status(200).json({
-        msg: "Manual refund processed successfully",
-        refundAmount,
-        userId: ticket.user._id,
-        transactionId: refundTransaction._id
-      });
-    } catch (transactionError) {
+    const adminId = req.user?.id;
+    if (!adminId) {
       await session.abortTransaction();
       session.endSession();
-      throw transactionError;
+      return res.status(401).json({ success: false, msg: 'Authentication required' });
     }
+    if (!ticketId || !refundAmount || Number(refundAmount) <= 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, msg: 'Valid ticketId and refundAmount are required' });
+    }
+
+    const ticket = await Ticket.findById(ticketId).populate('user', 'name email walletBalance').session(session);
+    if (!ticket) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, msg: 'Ticket not found' });
+    }
+
+    // If ticket not cancelled, optionally mark as cancelled (admin choice)
+    if (ticket.status !== 'cancelled') {
+      ticket.status = 'cancelled';
+      ticket.cancelledAt = new Date();
+      ticket.cancellationReason = reason || 'Admin initiated refund';
+      ticket.refundAmount = refundAmount;
+      await ticket.save({ session });
+    }
+
+    const refundTransaction = new WalletTransaction({
+      user: ticket.user._id,
+      amount: refundAmount,
+      type: 'refund',
+      description: `Manual refund for ticket ${ticket.ticketNumber || ticket._id}: ${reason || ''}`,
+      referenceType: 'ticket',
+      referenceId: ticket._id,
+      status: 'completed',
+      processedBy: adminId,
+      processedAt: new Date()
+    });
+
+    await refundTransaction.save({ session });
+
+    await User.findByIdAndUpdate(ticket.user._id, { $inc: { walletBalance: refundAmount }, $push: { walletTransactions: refundTransaction._id } }, { session });
+
+    if (Refund) {
+      try {
+        await Refund.create([{
+          user: ticket.user._id,
+          ticket: ticket._id,
+          booking: ticket.booking,
+          amount: refundAmount,
+          percentage: null,
+          status: 'completed',
+          reason: reason || 'Admin manual refund',
+          processedBy: adminId,
+          processedAt: new Date()
+        }], { session });
+      } catch (e) {
+        console.warn('Failed to create Refund record (manual):', e.message || e);
+      }
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({ success: true, msg: 'Manual refund processed successfully', refundAmount, transactionId: refundTransaction._id });
   } catch (err) {
-    if (err.name === "CastError") {
-      return res.status(400).json({ msg: "Invalid ticket ID format" });
-    }
-    res.status(500).json({ msg: "Server error", error: err.message });
+    try { await session.abortTransaction(); } catch (e) { /* ignore */ }
+    session.endSession();
+    console.error('Manual Refund Error:', err);
+    if (err.name === 'CastError') return res.status(400).json({ success: false, msg: 'Invalid ticket ID format' });
+    return res.status(500).json({ success: false, msg: 'Server error during manual refund', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get refund statistics (admin)
-exports.getRefundStats = async (req, res) => {
+/**
+ * Refund statistics (admin)
+ * GET /api/refunds/stats
+ */
+exports.getRefundStats = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
-    
-    const filter = { type: "refund" };
+    const filter = { type: 'refund' };
     if (startDate || endDate) {
       filter.createdAt = {};
       if (startDate) filter.createdAt.$gte = new Date(startDate);
@@ -604,77 +367,79 @@ exports.getRefundStats = async (req, res) => {
     }
 
     const totalRefunds = await WalletTransaction.countDocuments(filter);
-    const totalRefundAmount = await WalletTransaction.aggregate([
+    const totalRefundAmountAgg = await WalletTransaction.aggregate([
       { $match: filter },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
+      { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    
+    const totalRefundAmount = totalRefundAmountAgg[0]?.total || 0;
+
     const statusStats = await WalletTransaction.aggregate([
       { $match: filter },
-      { $group: { _id: "$status", count: { $sum: 1 } } }
+      { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
     const monthlyStats = await WalletTransaction.aggregate([
       { $match: filter },
       {
         $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" }
-          },
+          _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
           count: { $sum: 1 },
-          totalAmount: { $sum: "$amount" }
+          totalAmount: { $sum: '$amount' }
         }
       },
-      { $sort: { "_id.year": -1, "_id.month": -1 } },
+      { $sort: { '_id.year': -1, '_id.month': -1 } },
       { $limit: 12 }
     ]);
 
-    res.status(200).json({
-      totalRefunds,
-      totalRefundAmount: totalRefundAmount[0]?.total || 0,
-      statusStats,
-      monthlyStats
-    });
+    return res.status(200).json({ success: true, totalRefunds, totalRefundAmount, statusStats, monthlyStats });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Get Refund Stats Error:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Update refund status (admin)
-exports.updateRefundStatus = async (req, res) => {
+/**
+ * Update refund status (admin)
+ * PATCH /api/refunds/:id/status
+ */
+exports.updateRefundStatus = async (req, res, next) => {
   try {
     const refundId = req.params.id;
     const { status, notes } = req.body;
 
-    const refund = await WalletTransaction.findByIdAndUpdate(
-      refundId,
-      { status, ...(notes && { adminNotes: notes }) },
-      { new: true, runValidators: true }
-    );
+    if (!refundId) return res.status(400).json({ success: false, msg: 'Refund ID required' });
 
-    if (!refund) {
-      return res.status(404).json({ msg: "Refund not found" });
+    const update = { status };
+    if (notes) update.adminNotes = notes;
+
+    const updated = await WalletTransaction.findByIdAndUpdate(refundId, update, { new: true, runValidators: true }).populate('user', 'name email').populate('referenceId');
+    if (!updated) return res.status(404).json({ success: false, msg: 'Refund not found' });
+
+    // Optionally update Refund model as well
+    if (Refund) {
+      try {
+        await Refund.findOneAndUpdate({ ticket: updated.referenceId?._id || updated.referenceId }, { status, adminNotes: notes }, { new: true });
+      } catch (e) {
+        console.warn('Failed to sync Refund model status:', e.message || e);
+      }
     }
 
-    res.status(200).json({
-      msg: "Refund status updated successfully",
-      refund
-    });
+    return res.status(200).json({ success: true, msg: 'Refund status updated successfully', refund: updated });
   } catch (err) {
-    if (err.name === "CastError") {
-      return res.status(400).json({ msg: "Invalid refund ID format" });
-    }
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Update Refund Status Error:', err);
+    if (err.name === 'CastError') return res.status(400).json({ success: false, msg: 'Invalid refund ID format' });
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Export refunds data (admin)
-exports.exportRefunds = async (req, res) => {
+/**
+ * Export refunds (admin)
+ * GET /api/refunds/export?format=csv
+ */
+exports.exportRefunds = async (req, res, next) => {
   try {
-    const { startDate, endDate, status, type } = req.query;
-
-    const filter = { type: "refund" };
+    const { startDate, endDate, status, type, format = 'json' } = req.query;
+    const filter = { type: 'refund' };
     if (status) filter.status = status;
     if (type) filter.refundType = type;
     if (startDate || endDate) {
@@ -683,36 +448,52 @@ exports.exportRefunds = async (req, res) => {
       if (endDate) filter.createdAt.$lte = new Date(endDate);
     }
 
-    const refunds = await WalletTransaction.find(filter)
-      .populate("user", "name email")
-      .populate("referenceId")
-      .sort({ createdAt: -1 });
+    const refunds = await WalletTransaction.find(filter).populate('user', 'name email').populate('referenceId').sort({ createdAt: -1 });
 
-    // Simple JSON export - you can implement CSV/Excel export here
-    res.status(200).json({
-      success: true,
-      count: refunds.length,
-      data: refunds
-    });
+    if (format === 'csv') {
+      const rows = [['TransactionId', 'User', 'Email', 'Amount', 'Status', 'Reference', 'CreatedAt']];
+      refunds.forEach(r => {
+        rows.push([
+          r._id,
+          r.user?.name || '',
+          r.user?.email || '',
+          r.amount || 0,
+          r.status || '',
+          (r.referenceId && (r.referenceId.ticketNumber || r.referenceId._id)) || '',
+          r.createdAt ? r.createdAt.toISOString() : ''
+        ]);
+      });
+      const csv = rows.map(row => row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      res.header('Content-Type', 'text/csv');
+      res.attachment('refunds_export.csv');
+      return res.send(csv);
+    }
+
+    return res.status(200).json({ success: true, count: refunds.length, data: refunds });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Export Refunds Error:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
 
-// ✅ Get refund policy
-exports.getRefundPolicy = async (req, res) => {
+/**
+ * Get refund policy
+ * GET /api/refunds/policy
+ */
+exports.getRefundPolicy = async (req, res, next) => {
   try {
     const refundPolicy = {
-      policy: "Refund Policy",
+      policy: 'Refund Policy',
       rules: [
-        { hoursBeforeDeparture: "> 48", refundPercentage: 80 },
-        { hoursBeforeDeparture: "24-48", refundPercentage: 50 },
-        { hoursBeforeDeparture: "4-24", refundPercentage: 25 },
-        { hoursBeforeDeparture: "< 4", refundPercentage: 0 }
+        { hoursBeforeDeparture: '> 48', refundPercentage: 80 },
+        { hoursBeforeDeparture: '24-48', refundPercentage: 50 },
+        { hoursBeforeDeparture: '4-24', refundPercentage: 25 },
+        { hoursBeforeDeparture: '< 4', refundPercentage: 0 }
       ]
     };
-    res.status(200).json(refundPolicy);
+    return res.status(200).json({ success: true, refundPolicy });
   } catch (err) {
-    res.status(500).json({ msg: "Server error", error: err.message });
+    console.error('Get Refund Policy Error:', err);
+    return res.status(500).json({ success: false, msg: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error' });
   }
 };
