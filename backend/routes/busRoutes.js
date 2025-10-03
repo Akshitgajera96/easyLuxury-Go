@@ -6,314 +6,114 @@ const {
   getBusById,
   updateBus,
   deleteBus,
-  getBusesByRoute,
   getBusAvailability,
   updateBusStatus,
   getBusAnalytics,
   exportBuses,
-  getFeaturedRoutes,
+  getFeaturedBuses,
+  getPopularBuses,
+  searchBuses,
   getPopularRoutes
 } = require('../controllers/busController');
-const { protect, admin, captain } = require('../middlewares/authMiddleware');
+const { protect, admin, validate } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
-// Validation rules
+/* ------------------------- VALIDATIONS ------------------------- */
+
+// Create bus validation
 const createBusValidation = [
-  body('busNumber')
-    .notEmpty()
-    .withMessage('Bus number is required')
-    .trim()
-    .isLength({ max: 20 })
-    .withMessage('Bus number cannot exceed 20 characters')
-    .matches(/^[A-Z0-9\-]+$/)
-    .withMessage('Bus number can only contain letters, numbers, and hyphens'),
-  
-  body('busName')
-    .notEmpty()
-    .withMessage('Bus name is required')
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Bus name cannot exceed 100 characters'),
-  
-  body('operator')
-    .notEmpty()
-    .withMessage('Bus operator is required')
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Operator name cannot exceed 100 characters'),
-  
-  body('totalSeats')
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Total seats must be between 1 and 100'),
-  
-  body('route.from')
-    .notEmpty()
-    .withMessage('Departure location is required')
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Departure location cannot exceed 100 characters'),
-  
-  body('route.to')
-    .notEmpty()
-    .withMessage('Destination location is required')
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Destination location cannot exceed 100 characters'),
-  
-  body('route.distance')
-    .isFloat({ min: 1 })
-    .withMessage('Distance must be at least 1 km'),
-  
-  body('route.duration')
-    .isInt({ min: 1 })
-    .withMessage('Duration must be at least 1 minute'),
-  
-  body('schedule.departure')
-    .isISO8601()
-    .withMessage('Valid departure time is required'),
-  
-  body('schedule.arrival')
-    .isISO8601()
-    .withMessage('Valid arrival time is required'),
-  
-  body('basePrice')
-    .isFloat({ min: 0 })
-    .withMessage('Base price must be a positive number'),
-  
-  body('amenities')
-    .optional()
-    .isArray()
-    .withMessage('Amenities must be an array'),
-  
-  body('features.ac')
-    .optional()
-    .isBoolean()
-    .withMessage('AC feature must be a boolean'),
-  
-  body('features.wifi')
-    .optional()
-    .isBoolean()
-    .withMessage('WiFi feature must be a boolean')
+  body('busNumber').notEmpty().withMessage('Bus number is required').trim().isLength({ max: 20 }),
+  body('busName').notEmpty().withMessage('Bus name is required').trim().isLength({ max: 100 }),
+  body('operator').notEmpty().withMessage('Bus operator is required').trim().isLength({ max: 100 }),
+  body('totalSeats').isInt({ min: 1, max: 100 }).withMessage('Total seats must be between 1 and 100'),
+  body('route.from').notEmpty().withMessage('Departure location is required').trim().isLength({ max: 100 }),
+  body('route.to').notEmpty().withMessage('Destination location is required').trim().isLength({ max: 100 }),
+  body('route.distance').isFloat({ min: 1 }).withMessage('Distance must be at least 1 km'),
+  body('route.duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 minute'),
+  body('schedule.departure').isISO8601().withMessage('Valid departure time is required'),
+  body('schedule.arrival').isISO8601().withMessage('Valid arrival time is required'),
+  body('basePrice').isFloat({ min: 0 }).withMessage('Base price must be a positive number'),
+  body('amenities').optional().isArray().withMessage('Amenities must be an array'),
+  body('features.ac').optional().isBoolean().withMessage('AC feature must be a boolean'),
+  body('features.wifi').optional().isBoolean().withMessage('WiFi feature must be a boolean'),
+  validate
 ];
 
+// Update bus validation
 const updateBusValidation = [
-  body('busNumber')
-    .optional()
-    .trim()
-    .isLength({ max: 20 })
-    .withMessage('Bus number cannot exceed 20 characters')
-    .matches(/^[A-Z0-9\-]+$/)
-    .withMessage('Bus number can only contain letters, numbers, and hyphens'),
-  
-  body('busName')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Bus name cannot exceed 100 characters'),
-  
-  body('totalSeats')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Total seats must be between 1 and 100'),
-  
-  body('basePrice')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Base price must be a positive number'),
-  
-  body('status')
-    .optional()
-    .isIn(['active', 'maintenance', 'out_of_service', 'scheduled'])
-    .withMessage('Invalid status')
+  body('busNumber').optional().trim().isLength({ max: 20 }),
+  body('busName').optional().trim().isLength({ max: 100 }),
+  body('totalSeats').optional().isInt({ min: 1, max: 100 }),
+  body('basePrice').optional().isFloat({ min: 0 }),
+  body('status').optional().isIn(['active', 'maintenance', 'out_of_service', 'scheduled']),
+  validate
 ];
 
+// Bus ID param validation
 const busIdParamValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Valid bus ID is required')
+  param('id').isMongoId().withMessage('Valid bus ID is required'),
+  validate
 ];
 
+// Query validations
 const queryValidation = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  
-  query('search')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Search query cannot exceed 100 characters'),
-  
-  query('routeFrom')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Departure location cannot exceed 100 characters'),
-  
-  query('routeTo')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Destination location cannot exceed 100 characters'),
-  
-  query('minSeats')
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage('Minimum seats must be a positive integer'),
-  
-  query('maxSeats')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Maximum seats must be a positive integer'),
-  
-  query('status')
-    .optional()
-    .isIn(['active', 'maintenance', 'out_of_service', 'scheduled'])
-    .withMessage('Invalid status'),
-  
-  query('sortBy')
-    .optional()
-    .isIn(['busNumber', 'busName', 'basePrice', 'totalSeats', 'createdAt'])
-    .withMessage('Invalid sort field'),
-  
-  query('sortOrder')
-    .optional()
-    .isIn(['asc', 'desc'])
-    .withMessage('Sort order must be asc or desc'),
-  
-  query('date')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid date is required')
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 }),
+  query('search').optional().trim().isLength({ max: 100 }),
+  query('routeFrom').optional().trim().isLength({ max: 100 }),
+  query('routeTo').optional().trim().isLength({ max: 100 }),
+  query('minSeats').optional().isInt({ min: 0 }),
+  query('maxSeats').optional().isInt({ min: 1 }),
+  query('status').optional().isIn(['active', 'maintenance', 'out_of_service', 'scheduled']),
+  query('sortBy').optional().isIn(['busNumber', 'busName', 'basePrice', 'totalSeats', 'createdAt']),
+  query('sortOrder').optional().isIn(['asc', 'desc']),
+  query('date').optional().isISO8601(),
+  query('city').optional().trim().isLength({ max: 100 }),
+  validate
 ];
 
+// Route search validation
 const routeValidation = [
-  query('from')
-    .notEmpty()
-    .withMessage('Departure location is required')
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Departure location cannot exceed 100 characters'),
-  
-  query('to')
-    .notEmpty()
-    .withMessage('Destination location is required')
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Destination location cannot exceed 100 characters'),
-  
-  query('date')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid date is required')
+  query('from').notEmpty().withMessage('Departure location is required').trim().isLength({ max: 100 }),
+  query('to').notEmpty().withMessage('Destination location is required').trim().isLength({ max: 100 }),
+  query('date').optional().isISO8601(),
+  validate
 ];
 
-// @route   GET /api/buses
-// @desc    Get all buses with filtering and pagination
-// @access  Public
-router.get('/', queryValidation, getAllBuses);
+/* ------------------------- ROUTES ------------------------- */
 
-// @route   GET /api/buses/route
-// @desc    Get buses by route with optional date filter
-// @access  Public
-router.get('/route', routeValidation, getBusesByRoute);
+// Admin routes
+router.get('/analytics', protect, admin, getBusAnalytics);
+router.get('/export', protect, admin, exportBuses);
 
-// @route   GET /api/buses/availability/:id
-// @desc    Get bus availability for specific date
-// @access  Public
+// Featured, popular, search buses
+router.get('/featured', queryValidation, getFeaturedBuses);
+router.get('/popular', queryValidation, getPopularBuses);
+router.get('/search', routeValidation, searchBuses);
+
+// Bus availability
 router.get('/availability/:id', [
-  param('id')
-    .isMongoId()
-    .withMessage('Valid bus ID is required'),
-  
-  query('date')
-    .isISO8601()
-    .withMessage('Valid date is required')
+  param('id').isMongoId().withMessage('Valid bus ID is required'),
+  query('date').isISO8601().withMessage('Valid date is required'),
+  validate
 ], getBusAvailability);
 
-// @route   GET /api/buses/:id
-// @desc    Get a specific bus by ID
-// @access  Public
+// CRUD operations
+router.get('/', queryValidation, getAllBuses);
 router.get('/:id', busIdParamValidation, getBusById);
-
-// @route   POST /api/buses
-// @desc    Create a new bus
-// @access  Private (Admin)
 router.post('/', protect, admin, createBusValidation, createBus);
-
-// @route   PUT /api/buses/:id
-// @desc    Update an existing bus
-// @access  Private (Admin)
 router.put('/:id', protect, admin, busIdParamValidation, updateBusValidation, updateBus);
-
-// @route   PATCH /api/buses/:id/status
-// @desc    Update bus status
-// @access  Private (Admin, Captain)
-router.patch('/:id/status', protect, busIdParamValidation, [
-  body('status')
-    .isIn(['active', 'maintenance', 'out_of_service', 'scheduled'])
-    .withMessage('Invalid status'),
-  
-  body('reason')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Reason cannot exceed 500 characters')
-], updateBusStatus);
-
-// @route   DELETE /api/buses/:id
-// @desc    Delete a bus (soft delete)
-// @access  Private (Admin)
 router.delete('/:id', protect, admin, busIdParamValidation, deleteBus);
 
-// @route   GET /api/buses/admin/analytics
-// @desc    Get bus analytics and statistics
-// @access  Private (Admin)
-router.get('/admin/analytics', protect, admin, getBusAnalytics);
+// Get popular routes analytics
+router.get('/route', queryValidation, getPopularRoutes); // <-- આ નવો રાઉટ ઉમેરો
 
-// @route   GET /api/buses/admin/export
-// @desc    Export buses data
-// @access  Private (Admin)
-router.get('/admin/export', protect, admin, exportBuses);
-
-// @route   GET /api/buses/route/featured
-// @desc    Get featured routes
-// @access  Public
-router.get('/route/featured', getFeaturedRoutes);
-
-// @route   GET /api/buses/route/popular
-// @desc    Get popular routes with limit
-// @access  Public
-router.get('/route/popular', getPopularRoutes);
-
-
-
-// 📊 Popular routes
-router.get('/popular', async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 10;
-    const routes = await Bus.find().sort({ bookings: -1 }).limit(limit);
-    res.json(routes);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch popular routes' });
-  }
-});
-
-// ⭐ Featured routes
-router.get('/featured', async (req, res) => {
-  try {
-    const routes = await Bus.find({ isFeatured: true }).limit(10);
-    res.json(routes);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch featured routes' });
-  }
-});
+// Update bus status
+router.patch('/:id/status', protect, admin, busIdParamValidation, [
+  body('status').isIn(['active', 'maintenance', 'out_of_service', 'scheduled']),
+  body('reason').optional().trim().isLength({ max: 500 }),
+  validate
+], updateBusStatus);
 
 module.exports = router;

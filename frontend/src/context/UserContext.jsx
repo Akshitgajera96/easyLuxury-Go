@@ -2,217 +2,179 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { 
-  getProfile, 
-  updateProfile, 
-  getStoredUser
-} from "../services/authService";
+  getProfile, 
+  updateProfile, 
+  getStoredUser, 
+  getWalletTransactions, 
+  updatePreferences 
+} from "../services/authService"; // ✅ all functions from authService
 import { useSocket } from "./SocketContext";
 import toast from "react-hot-toast";
 
+// 1️⃣ Create context
 const UserContext = createContext();
 
+// 2️⃣ Hook to use context
 export const useUser = () => {
-  const context = useContext(UserContext);
-  if (!context) {
-    throw new Error("useUser must be used within a UserProvider");
-  }
-  return context;
+  const context = useContext(UserContext);
+  if (!context) throw new Error("useUser must be used within UserProvider");
+  return context;
 };
 
+// 3️⃣ Provider
 export const UserProvider = ({ children }) => {
-  const { user: authUser, isAuthenticated, updateUser: updateAuthUser } = useAuth();
-  const { isConnected, onWalletUpdate } = useSocket();
-  const [userDetails, setUserDetails] = useState(null);
-  const [walletTransactions, setWalletTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const { user: authUser, isAuthenticated, updateUser: updateAuthUser } = useAuth();
+  // FIXED: Destructure the 'socket' object itself, not the non-existent 'onWalletUpdate' function.
+  const { socket, isConnected } = useSocket();
 
-  // Fetch user profile when authentication state changes
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (isAuthenticated && authUser) {
-        setLoading(true);
-        try {
-          // Try to get fresh data from API
-          const profileResponse = await getProfile();
-          setUserDetails(profileResponse.user);
-          
-          // Also load wallet transactions
-          const transactionsResponse = await getWalletTransactions({ limit: 10 });
-          setWalletTransactions(transactionsResponse.data || []);
-          
-        } catch (error) {
-          console.error("Failed to fetch user data:", error);
-          // Fallback to stored user data if API fails
-          const storedUser = getStoredUser();
-          if (storedUser) {
-            setUserDetails(storedUser);
-          }
-          toast.error("Failed to load user data");
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setUserDetails(null);
-        setWalletTransactions([]);
-        setLoading(false);
-      }
-    };
+  const [user, setUser] = useState(null);
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
-    fetchUserData();
-  }, [isAuthenticated, authUser]);
+  // Fetch user profile
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (isAuthenticated && authUser) {
+        setLoading(true);
+        try {
+          // OPTIMIZED: Fetch profile and transactions in parallel for better performance.
+          const [profileRes, txRes] = await Promise.all([
+            getProfile(),
+            getWalletTransactions({ limit: 10 })
+          ]);
+          setUser(profileRes.user);
+          setWalletTransactions(txRes.data || []);
+        } catch (err) {
+          console.error("Failed to fetch user data:", err);
+          const stored = getStoredUser();
+          if (stored) setUser(stored);
+          toast.error("Failed to load user data");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setUser(null);
+        setWalletTransactions([]);
+        setLoading(false);
+      }
+    };
+    fetchUserData();
+  }, [isAuthenticated, authUser]);
 
-  // Listen for real-time wallet updates
-  useEffect(() => {
-    if (!isConnected) return;
+  // Real-time wallet updates
+  useEffect(() => {
+    // FIXED: Check for the actual socket object instead of just isConnected.
+    if (!socket) return;
 
-    const handleWalletUpdate = (transaction) => {
-      setWalletTransactions(prev => [transaction, ...prev]);
-      
-      // Update user balance if included
-      if (transaction.newBalance !== undefined && userDetails?.wallet) {
-        setUserDetails(prev => ({
-          ...prev,
-          wallet: { ...prev.wallet, balance: transaction.newBalance }
-        }));
-      }
-      
-      toast.success(`Wallet ${transaction.type}: $${transaction.amount}`);
-    };
-
-    const unsubscribe = onWalletUpdate(handleWalletUpdate);
-    return unsubscribe;
-  }, [isConnected, userDetails?.wallet]);
-
-  // Update user profile
-  const updateUserProfile = async (profileData) => {
-    setUpdating(true);
-    try {
-      const response = await updateProfile(profileData);
-      setUserDetails(response.user);
-      updateAuthUser(response.user); // Also update auth context
-      toast.success("Profile updated successfully");
-      return { success: true };
-    } catch (error) {
-      console.error("Failed to update profile:", error);
-      toast.error(error.message || "Failed to update profile");
-      return { success: false, error: error.message };
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // Update user preferences
-  const updateUserPreferences = async (preferences) => {
-    setUpdating(true);
-    try {
-      const response = await updatePreferences(preferences);
-      setUserDetails(prev => ({ ...prev, preferences: response.preferences }));
-      toast.success("Preferences updated");
-      return { success: true };
-    } catch (error) {
-      console.error("Failed to update preferences:", error);
-      toast.error(error.message || "Failed to update preferences");
-      return { success: false, error: error.message };
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // Refresh user data
-  const refreshUserData = async () => {
-    setLoading(true);
-    try {
-      const [profileResponse, transactionsResponse] = await Promise.all([
-        getProfile(),
-        getWalletTransactions({ limit: 10 })
-      ]);
-      
-      setUserDetails(profileResponse.user);
-      setWalletTransactions(transactionsResponse.data || []);
-      toast.success("Data refreshed");
-    } catch (error) {
-      console.error("Failed to refresh user data:", error);
-      toast.error("Failed to refresh data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Update specific user field (optimistic update)
-  const updateUserField = (field, value) => {
-    setUserDetails(prev => prev ? { ...prev, [field]: value } : null);
-  };
-
-  // Update wallet balance locally (for optimistic updates)
-  const updateWalletBalance = (amount, type = 'update') => {
-    if (!userDetails?.wallet) return;
-
-    const newBalance = type === 'add' 
-      ? userDetails.wallet.balance + amount
-      : type === 'subtract'
-      ? userDetails.wallet.balance - amount
-      : amount;
-
-    setUserDetails(prev => ({
-      ...prev,
-      wallet: { ...prev.wallet, balance: newBalance }
-    }));
-  };
-
-  // Check if user has specific role
-  const hasRole = (role) => {
-    return userDetails?.role === role;
-  };
-
-  // Check if user has specific permission
-  const hasPermission = (permission) => {
-    return userDetails?.permissions?.includes(permission);
-  };
-
-  // Get user's full name
-  const getFullName = () => {
-    return userDetails?.name || `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim();
-  };
-
-  // Get wallet balance
-  const getWalletBalance = () => {
-    return userDetails?.wallet?.balance || 0;
-  };
-
-  // Check if wallet has sufficient balance
-  const hasSufficientBalance = (amount) => {
-    return getWalletBalance() >= amount;
-  };
-
-  const value = {
-    // State
-    user: userDetails,
-    walletTransactions,
-    loading,
-    updating,
+    // DEFINED: The handler function that was missing, which caused the crash.
+    const handleWalletUpdate = (tx) => {
+      console.log('✅ Real-time wallet update received:', tx);
+      setWalletTransactions(prev => [tx, ...prev]);
+      if (tx.newBalance !== undefined && user?.wallet) {
+        setUser(prev => ({ ...prev, wallet: { ...prev.wallet, balance: tx.newBalance } }));
+      }
+      toast.success(`Wallet ${tx.type}: $${tx.amount}`);
+    };
     
-    // Actions
-    updateUserProfile,
-    updateUserPreferences,
-    updateUserField,
-    updateWalletBalance,
-    refreshUserData,
+    // FIXED: Use the standard socket.on() method to listen for events.
+    socket.on('walletUpdate', handleWalletUpdate);
     
-    // Utilities
-    hasRole,
-    hasPermission,
-    getFullName,
-    getWalletBalance,
-    hasSufficientBalance,
-    isAuthenticated
-  };
+    // FIXED: Return a cleanup function that uses socket.off() to prevent memory leaks.
+    return () => {
+      socket.off('walletUpdate', handleWalletUpdate);
+    };
+  }, [socket, user?.wallet]); // Depend on the socket instance.
 
-  return (
-    <UserContext.Provider value={value}>
-      {children}
-    </UserContext.Provider>
-  );
+  // Update profile
+  const updateUserProfile = async (profileData) => {
+    setUpdating(true);
+    try {
+      const res = await updateProfile(profileData);
+      setUser(res.user);
+      updateAuthUser(res.user);
+      toast.success("Profile updated successfully");
+      return { success: true };
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      toast.error(err.message || "Failed to update profile");
+      return { success: false, error: err.message };
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Update preferences
+  const updateUserPreferences = async (preferences) => {
+    setUpdating(true);
+    try {
+      const res = await updatePreferences(preferences);
+      setUser(prev => ({ ...prev, preferences: res.preferences }));
+      toast.success("Preferences updated");
+      return { success: true };
+    } catch (err) {
+      console.error("Failed to update preferences:", err);
+      toast.error(err.message || "Failed to update preferences");
+      return { success: false, error: err.message };
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Refresh user data
+  const refreshUserData = async () => {
+    setLoading(true);
+    try {
+      const [profileRes, txRes] = await Promise.all([getProfile(), getWalletTransactions({ limit: 10 })]);
+      setUser(profileRes.user);
+      setWalletTransactions(txRes.data || []);
+      toast.success("Data refreshed");
+    } catch (err) {
+      console.error("Failed to refresh user data:", err);
+      toast.error("Failed to refresh data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Utilities
+  const updateUserField = (field, value) => setUser(prev => prev ? { ...prev, [field]: value } : null);
+
+  const updateWalletBalance = (amount, type = 'update') => {
+    if (!user?.wallet) return;
+    const newBalance = type === 'add' ? user.wallet.balance + amount
+                     : type === 'subtract' ? user.wallet.balance - amount
+                     : amount;
+    setUser(prev => ({ ...prev, wallet: { ...prev.wallet, balance: newBalance } }));
+  };
+
+  const hasRole = (role) => user?.role === role;
+  const hasPermission = (permission) => user?.permissions?.includes(permission);
+  const getFullName = () => user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+  const getWalletBalance = () => user?.wallet?.balance || 0;
+  const hasSufficientBalance = (amount) => getWalletBalance() >= amount;
+
+  return (
+    <UserContext.Provider value={{
+      user,
+      walletTransactions,
+      loading,
+      updating,
+      updateUserProfile,
+      updateUserPreferences,
+      updateUserField,
+      updateWalletBalance,
+      refreshUserData,
+      hasRole,
+      hasPermission,
+      getFullName,
+      getWalletBalance,
+      hasSufficientBalance,
+      isAuthenticated
+    }}>
+      {children}
+    </UserContext.Provider>
+  );
 };
 
 export default UserContext;

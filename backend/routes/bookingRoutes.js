@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
+
 const {
   createBooking,
   getBookingsByUser,
@@ -9,189 +10,157 @@ const {
   checkSeatAvailability,
   updateBooking,
   getBookingAnalytics,
-  exportBookings
+  exportBookings,
+  getBookingStats,
+  getRevenueTrends
 } = require('../controllers/bookingController');
-const { protect, admin, authorizeResourceOwner } = require('../middlewares/authMiddleware');
+
+const {
+  protect,
+  requireRole,
+  authorizeResourceOwner,
+  validate
+} = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
-// Validation rules
+/**
+ * -------------------------
+ * Validation middlewares
+ * -------------------------
+ */
+
+// Create booking validation
 const createBookingValidation = [
-  body('userId')
-    .isMongoId()
-    .withMessage('Valid user ID is required'),
-  
-  body('busId')
-    .isMongoId()
-    .withMessage('Valid bus ID is required'),
-  
+  body('userId').optional().isMongoId().withMessage('Valid userId required'),
+  body('busId').isMongoId().withMessage('Valid busId required'),
   body('seatNumbers')
-    .isArray({ min: 1 })
-    .withMessage('At least one seat number is required')
-    .custom((seats) => {
-      if (!seats.every(seat => Number.isInteger(seat) && seat > 0)) {
-        throw new Error('All seat numbers must be positive integers');
-      }
+    .isArray({ min: 1 }).withMessage('At least one seat number is required')
+    .custom(seats => {
+      if (!seats.every(Number.isInteger)) throw new Error('All seat numbers must be integers');
       return true;
     }),
-  
-  body('price')
-    .isFloat({ min: 0 })
-    .withMessage('Valid price is required'),
-  
-  body('date')
-    .isISO8601()
-    .withMessage('Valid date is required'),
-  
-  body('time')
-    .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
-    .withMessage('Valid time format (HH:MM) is required')
+  body('price').isFloat({ min: 0 }).withMessage('Price must be valid'),
+  body('date').isISO8601().withMessage('Valid date required'),
+  body('time').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Time must be HH:MM'),
+  validate
 ];
 
+// Seat availability validation
 const checkSeatAvailabilityValidation = [
-  body('busId')
-    .isMongoId()
-    .withMessage('Valid bus ID is required'),
-  
+  body('busId').isMongoId().withMessage('Valid busId required'),
   body('seats')
-    .isArray({ min: 1 })
-    .withMessage('At least one seat number is required')
-    .custom((seats) => {
-      if (!seats.every(seat => Number.isInteger(seat) && seat > 0)) {
-        throw new Error('All seat numbers must be positive integers');
-      }
+    .isArray({ min: 1 }).withMessage('Seats array required')
+    .custom(seats => {
+      if (!seats.every(Number.isInteger)) throw new Error('All seat numbers must be integers');
       return true;
     }),
-  
-  body('date')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid date is required')
+  body('date').optional().isISO8601().withMessage('Valid date required'),
+  validate
 ];
 
+// Update booking validation
 const updateBookingValidation = [
-  body('seatNumbers')
-    .optional()
-    .isArray({ min: 1 })
-    .withMessage('At least one seat number is required')
-    .custom((seats) => {
-      if (!seats.every(seat => Number.isInteger(seat) && seat > 0)) {
-        throw new Error('All seat numbers must be positive integers');
-      }
+  body('seatNumbers').optional()
+    .isArray({ min: 1 }).withMessage('seatNumbers must be an array')
+    .custom(seats => {
+      if (!seats.every(Number.isInteger)) throw new Error('All seat numbers must be integers');
       return true;
     }),
-  
-  body('status')
-    .optional()
-    .isIn(['confirmed', 'cancelled', 'refunded'])
-    .withMessage('Invalid status'),
-  
-  body('price')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Valid price is required')
+  body('status').optional().isIn(['confirmed', 'cancelled', 'refunded']).withMessage('Invalid status'),
+  body('price').optional().isFloat({ min: 0 }).withMessage('Price must be valid'),
+  validate
 ];
 
-const userIdParamValidation = [
-  param('userId')
-    .isMongoId()
-    .withMessage('Valid user ID is required')
-];
-
+// Params validation
 const bookingIdParamValidation = [
-  param('bookingId')
-    .isMongoId()
-    .withMessage('Valid booking ID is required')
+  param('bookingId').isMongoId().withMessage('Valid bookingId required'),
+  validate
+];
+const userIdParamValidation = [
+  param('userId').isMongoId().withMessage('Valid userId required'),
+  validate
+];
+const busIdParamValidation = [
+  param('busId').isMongoId().withMessage('Valid busId required'),
+  validate
 ];
 
+// Query validation
 const queryValidation = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  
-  query('status')
-    .optional()
-    .isIn(['confirmed', 'cancelled', 'refunded', 'completed'])
-    .withMessage('Invalid status filter'),
-  
-  query('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid start date is required'),
-  
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid end date is required')
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be 1-100'),
+  query('status').optional().isIn(['confirmed','cancelled','refunded','completed']).withMessage('Invalid status'),
+  query('startDate').optional().isISO8601().withMessage('Valid startDate required'),
+  query('endDate').optional().isISO8601().withMessage('Valid endDate required'),
+  validate
 ];
 
-// @route   POST /api/bookings
-// @desc    Create a new booking
-// @access  Private (User)
+/**
+ * -------------------------
+ * Routes
+ * -------------------------
+ */
+
+// Create new booking (user or admin)
 router.post('/', protect, createBookingValidation, createBooking);
 
-// @route   GET /api/bookings
-// @desc    Get user's bookings with filtering and pagination
-// @access  Private (User)
-router.get('/', protect, queryValidation, getBookingsByUser);
-
-// @route   GET /api/bookings/all
-// @desc    Get all bookings (admin access) with filtering
-// @access  Private (Admin)
-router.get('/all', protect, admin, queryValidation, getAllBookings);
-
-// @route   GET /api/bookings/analytics
-// @desc    Get booking analytics (admin access)
-// @access  Private (Admin)
-router.get('/analytics', protect, admin, getBookingAnalytics);
-
-// @route   GET /api/bookings/export
-// @desc    Export bookings data (admin access)
-// @access  Private (Admin)
-router.get('/export', protect, admin, exportBookings);
-
-// @route   GET /api/bookings/user/:userId
-// @desc    Get bookings for a specific user (admin or same user)
-// @access  Private (Admin or User)
-router.get('/user/:userId', protect, userIdParamValidation, authorizeResourceOwner('params'), queryValidation, getBookingsByUser);
-
-// @route   GET /api/bookings/:bookingId
-// @desc    Get booking by ID
-// @access  Private (User - own booking, Admin - any booking)
-router.get('/:bookingId', protect, bookingIdParamValidation, getBookingById);
-
-// @route   PUT /api/bookings/:bookingId
-// @desc    Update a booking (admin only)
-// @access  Private (Admin)
-router.put('/:bookingId', protect, admin, bookingIdParamValidation, updateBookingValidation, updateBooking);
-
-// @route   POST /api/bookings/:bookingId/cancel
-// @desc    Cancel a booking
-// @access  Private (User - own booking, Admin - any booking)
-router.post('/:bookingId/cancel', protect, bookingIdParamValidation, cancelBooking);
-
-// @route   POST /api/bookings/check-availability
-// @desc    Check seat availability
-// @access  Public
+// Check seat availability (public)
 router.post('/check-availability', checkSeatAvailabilityValidation, checkSeatAvailability);
 
-// @route   GET /api/bookings/bus/:busId/availability
-// @desc    Get all available seats for a bus on a specific date
-// @access  Public
-router.get('/bus/:busId/availability', [
-  param('busId')
-    .isMongoId()
-    .withMessage('Valid bus ID is required'),
-  
-  query('date')
-    .isISO8601()
-    .withMessage('Valid date is required')
-], checkSeatAvailability);
+// Bus seat availability by date (public)
+router.get(
+  '/bus/:busId/availability',
+  busIdParamValidation,
+  query('date').isISO8601().withMessage('Valid date required'),
+  validate,
+  checkSeatAvailability
+);
+
+// Get bookings for authenticated user or specific user (admin/resource owner)
+router.get(
+  '/user/:userId',
+  protect,
+  userIdParamValidation,
+  authorizeResourceOwner(req => req.params.userId),
+  queryValidation,
+  getBookingsByUser
+);
+
+// Get bookings for authenticated user (no param)
+router.get('/',protect, queryValidation, getBookingsByUser);
+
+// Get booking by ID
+router.get('/:bookingId', protect, bookingIdParamValidation, getBookingById);
+
+// Update booking (admin only)
+router.put(
+  '/:bookingId',
+  protect,
+  requireRole('admin'),
+  bookingIdParamValidation,
+  updateBookingValidation,
+  updateBooking
+);
+
+// Cancel booking (user owns booking or admin)
+router.post(
+  '/:bookingId/cancel',
+  protect,
+  bookingIdParamValidation,
+  cancelBooking
+);
+
+// Admin-only routes
+router.get('/all', protect, requireRole('admin'), queryValidation, getAllBookings);
+
+// Analytics routes
+router.get('/admin/stats', protect, requireRole('admin'), getBookingStats); // <-- આ નવો રાઉટ ઉમેરો
+router.get('/analytics/revenue', protect, requireRole('admin'), getRevenueTrends); // <-- આ નવો રાઉટ ઉમેરો
+
+// Existing analytics route
+router.get('/analytics', protect, requireRole('admin'), getBookingAnalytics);
+
+router.get('/export', protect, requireRole('admin'), exportBookings);
 
 module.exports = router;

@@ -1,4 +1,5 @@
-// src/pages/Dashboard.jsx
+// frontend/src/pages/Dashboard.jsx (બધા ખૂટતા કમ્પોનન્ટ દૂર કર્યા પછીનો અંતિમ કોડ)
+
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -9,10 +10,7 @@ import {
   getRevenueTrends,
   getRouteAnalytics 
 } from "../services/analyticsService";
-import { 
-  getMyBookings,
-  getUserBookings 
-} from "../services/bookingService";
+import { getMyBookings } from "../services/bookingService";
 import { getRefundStats } from "../services/refundService";
 import { toast } from "react-hot-toast";
 import DashboardStats from "../components/dashboard/DashboardStats";
@@ -30,13 +28,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// નોંધ: Tabs, QuickActions અને RecentBookings કમ્પોનન્ટ તમારા પ્રોજેક્ટમાં ન હોવાથી તેને દૂર કરવામાં આવ્યા છે.
+
 const Dashboard = () => {
   const { isAuthenticated, user: authUser } = useAuth();
-  const { user: userDetails, getWalletBalance, refreshUserData } = useUser();
+  const { user: userDetails, getWalletBalance } = useUser();
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [analytics, setAnalytics] = useState({});
-  const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -65,11 +64,9 @@ const Dashboard = () => {
 
   const loadDashboardStats = async () => {
     try {
-      const [statsData, refundStats, walletBalance] = await Promise.all([
-        getDashboardStats(),
-        getRefundStats(),
-        getWalletBalance()
-      ]);
+      const statsData = await getDashboardStats();
+      const refundStats = await getRefundStats();
+      const walletBalance = await getWalletBalance();
       
       setStats({
         ...statsData,
@@ -135,7 +132,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -150,200 +147,66 @@ const Dashboard = () => {
               Here's your travel dashboard overview
             </p>
           </div>
-          
-          <Button
-            onClick={handleRefresh}
-            loading={refreshing}
-            variant="outline"
-            className="mt-4 sm:mt-0"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline" className="mt-4 sm:mt-0">
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </motion.div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="bookings">Bookings</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="wallet">Wallet</TabsTrigger>
-          </TabsList>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <DashboardStats title="Total Bookings" value={stats?.totalBookings || 0} icon={<Calendar className="w-6 h-6" />} color="blue" />
+            <DashboardStats title="Wallet Balance" value={`$${(stats?.walletBalance || 0).toFixed(2)}`} icon={<Wallet className="w-6 h-6" />} color="green" />
+            <DashboardStats title="Active Trips" value={stats?.activeTrips || 0} icon={<Bus className="w-6 h-6" />} color="purple" />
+            <DashboardStats title="Total Refunds" value={stats?.refundStats?.totalRefunds || 0} icon={<DollarSign className="w-6 h-6" />} color="orange" />
+        </div>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <DashboardStats
-                title="Total Bookings"
-                value={stats?.totalBookings || 0}
-                icon={<Calendar className="w-6 h-6" />}
-                trend={stats?.bookingGrowth || 0}
-                color="blue"
-              />
-              <DashboardStats
-                title="Wallet Balance"
-                value={`$${(stats?.walletBalance || 0).toFixed(2)}`}
-                icon={<Wallet className="w-6 h-6" />}
-                trend={stats?.revenueGrowth || 0}
-                color="green"
-              />
-              <DashboardStats
-                title="Active Trips"
-                value={stats?.activeTrips || 0}
-                icon={<Bus className="w-6 h-6" />}
-                trend={stats?.occupancyRate || 0}
-                color="purple"
-              />
-              <DashboardStats
-                title="Total Refunds"
-                value={stats?.refundStats?.totalRefunds || 0}
-                icon={<DollarSign className="w-6 h-6" />}
-                trend={stats?.refundStats?.approvalRate || 0}
-                color="orange"
-              />
-            </div>
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AnalyticsCard title="Booking Trends" data={analytics.booking?.weeklyTrend || []} dataKey="count" labelKey="week" color="#3b82f6" type="line" icon={<TrendingUp className="w-5 h-5" />} />
+            <AnalyticsCard title="Revenue Analysis" data={analytics.revenue?.monthlyRevenue || []} dataKey="amount" labelKey="month" color="#10b981" type="bar" icon={<DollarSign className="w-5 h-5" />} />
+        </div>
 
-            {/* Quick Actions */}
-            <QuickActions />
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <AnalyticsCard
-                title="Booking Trends"
-                data={analytics.booking?.weeklyTrend || []}
-                dataKey="count"
-                labelKey="week"
-                color="#3b82f6"
-                type="line"
-                icon={<TrendingUp className="w-5 h-5" />}
-              />
-              <AnalyticsCard
-                title="Revenue Analysis"
-                data={analytics.revenue?.monthlyRevenue || []}
-                dataKey="amount"
-                labelKey="month"
-                color="#10b981"
-                type="bar"
-                icon={<DollarSign className="w-5 h-5" />}
-              />
-            </div>
-
-            {/* Recent Bookings & Popular Routes */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RecentBookings bookings={bookings} />
-              
-              <Card>
+        {/* Recent Bookings & Popular Routes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* RecentBookings કમ્પોનન્ટ ખૂટતો હોવાથી આ સેક્શન ખાલી રાખેલ છે */}
+            <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Users className="w-5 h-5 mr-2" />
-                    Popular Routes
-                  </CardTitle>
-                  <CardDescription>
-                    Most traveled routes this month
-                  </CardDescription>
+                    <CardTitle>Recent Bookings</CardTitle>
+                    <CardDescription>Your last 5 bookings would appear here.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {analytics.routes?.length > 0 ? (
+                    <p className="text-gray-500 text-center py-8">RecentBookings component not found.</p>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center">
+                        <Users className="w-5 h-5 mr-2" />
+                        Popular Routes
+                    </CardTitle>
+                    <CardDescription>Most traveled routes this month</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {analytics.routes?.routes && analytics.routes.routes.length > 0 ? (
                     <div className="space-y-3">
-                      {analytics.routes.slice(0, 5).map((route, index) => (
+                        {analytics.routes.routes.slice(0, 5).map((route, index) => (
                         <div key={index} className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <div>
-                            <p className="font-medium">{route.from} → {route.to}</p>
-                            <p className="text-sm text-gray-500">{route.bookings} bookings</p>
-                          </div>
-                          <span className="text-green-600 font-semibold">
-                            ${route.revenue}
-                          </span>
+                            <div>
+                                <p className="font-medium">{route.from} → {route.to}</p>
+                                <p className="text-sm text-gray-500">{route.bookings} bookings</p>
+                            </div>
+                            <span className="text-green-600 font-semibold">${route.revenue}</span>
                         </div>
-                      ))}
+                        ))}
                     </div>
-                  ) : (
+                    ) : (
                     <p className="text-gray-500 text-center py-8">No route data available</p>
-                  )}
+                    )}
                 </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Bookings Tab */}
-          <TabsContent value="bookings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Booking Management</CardTitle>
-                <CardDescription>
-                  View and manage your bus bookings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RecentBookings 
-                  bookings={bookings} 
-                  showViewAll={true}
-                  showActions={true}
-                />
-              </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics">
-            <div className="grid grid-cols-1 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Detailed Analytics</CardTitle>
-                  <CardDescription>
-                    Comprehensive view of your travel patterns
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <AnalyticsCard
-                      title="Monthly Bookings"
-                      data={analytics.booking?.monthlyTrend || []}
-                      dataKey="count"
-                      labelKey="month"
-                      color="#3b82f6"
-                      type="area"
-                    />
-                    <AnalyticsCard
-                      title="Revenue Trends"
-                      data={analytics.revenue?.weeklyRevenue || []}
-                      dataKey="amount"
-                      labelKey="week"
-                      color="#10b981"
-                      type="bar"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Wallet Tab */}
-          <TabsContent value="wallet">
-            <Card>
-              <CardHeader>
-                <CardTitle>Wallet Management</CardTitle>
-                <CardDescription>
-                  Manage your travel funds and transactions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Wallet className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Wallet Balance: ${(stats?.walletBalance || 0).toFixed(2)}
-                  </h3>
-                  <p className="text-gray-500 mb-4">
-                    Add funds to your wallet for seamless bookings
-                  </p>
-                  <Button>Add Funds</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
     </div>
   );

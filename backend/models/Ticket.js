@@ -56,13 +56,7 @@ const ticketSchema = new mongoose.Schema(
         min: [1, "Age must be at least 1"],
         max: [120, "Age cannot exceed 120"]
       },
-      gender: {
-        type: String,
-        enum: {
-          values: ["male", "female", "other"],
-          message: "Gender must be male, female, or other"
-        }
-      },
+     
       idType: {
         type: String,
         enum: ["aadhaar", "passport", "driving_license", "voter_id", "other"]

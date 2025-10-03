@@ -1,42 +1,43 @@
-// src/services/api.js
-import axios from 'axios';
+import axios from "axios";
 
 // ✅ Dynamically fetch API base URL from .env
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Create axios instance with default config
-export const api = axios.create({
+// ✅ Create axios instance with default config
+export const API = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true,
 });
 
-// Request interceptor to add auth token
-api.interceptors.request.use(
+// ✅ Request interceptor to add auth token
+API.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle common errors
-api.interceptors.response.use(
+// ✅ Response interceptor to handle common errors
+API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      window.location.href = '/login';
+      // Token expired or invalid → clear storage & redirect
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      window.location.href = "/login";
     }
+    console.error("❌ API Response Error:", {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+      config: error.config,
+    });
     return Promise.reject(error);
   }
 );
@@ -51,10 +52,10 @@ export const AUTH_API = {
   FORGOT_PASSWORD: `/auth/forgot-password`,
   RESET_PASSWORD: `/auth/reset-password`,
   REFRESH_TOKEN: `/auth/refresh-token`,
-  GET_ME: `/auth/me`,
   UPDATE_PROFILE: `/auth/profile`,
   CHANGE_PASSWORD: `/auth/change-password`,
   CHECK_SESSION: `/auth/session`,
+  // ME: `/auth/me`,
 };
 
 // ✅ User Endpoints
@@ -89,8 +90,8 @@ export const BOOKING_API = {
 export const BUS_API = {
   GET_ALL: `/buses`,
   GET_BY_ROUTE: `/buses/route`,
-  GET_AVAILABILITY: (busId) => `/buses/availability/${busId}`,
   GET_BY_ID: (busId) => `/buses/${busId}`,
+  GET_AVAILABILITY: (busId) => `/buses/availability/${busId}`,
   CREATE: `/buses`,
   UPDATE: (busId) => `/buses/${busId}`,
   UPDATE_STATUS: (busId) => `/buses/${busId}/status`,
@@ -128,23 +129,19 @@ export const REFUND_API = {
 // ✅ Utility function for API calls
 export const apiCall = async (method, url, data = null, config = {}) => {
   try {
-    const response = await api({
-      method,
-      url,
-      data,
-      ...config,
-    });
+    const response = await API({ method, url, data, ...config });
     return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'An error occurred' };
+  } catch (err) {
+    console.error("❌ API Call Error:", err);
+    throw err.response?.data || { message: err.message };
   }
 };
 
-// ✅ Utility function for headers
+// ✅ Utility function to attach auth header
 export const withAuthHeader = (token) => ({
   headers: {
     Authorization: `Bearer ${token}`,
   },
 });
 
-export default api;
+export default API;

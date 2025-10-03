@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 
 const UnauthorizedPage = () => {
   const location = useLocation();
-  const { requiredRole, userRole, requiredPermissions, userPermissions } = location.state || {};
+  const { requiredRole, userRole, requiredPermissions, userPermissions } =
+    location.state || {};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -37,7 +38,11 @@ const UnauthorizedPage = () => {
         {requiredPermissions && requiredPermissions.length > 0 && (
           <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              Required permissions: <strong>{requiredPermissions.join(", ")}</strong>
+              Required permissions:{" "}
+              <strong>{requiredPermissions.join(", ")}</strong>
+              <br />
+              Your permissions:{" "}
+              <strong>{userPermissions?.join(", ") || "None"}</strong>
             </p>
           </div>
         )}

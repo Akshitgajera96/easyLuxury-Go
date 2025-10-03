@@ -1,11 +1,11 @@
 // src/context/SocketContext.jsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
-import { 
-  initializeSocket, 
-  connectSocket, 
-  disconnectSocket, 
-  isSocketConnected,
+import {
+  initializeSocket,
+  connectSocket,
+  disconnectSocket,
+  cleanupSocket,
   onConnectionChange,
   onBookingConfirmed,
   onSeatUpdate,
@@ -13,227 +13,147 @@ import {
   onWalletUpdate,
   onBusStatusUpdate,
   onUserNotification,
-  cleanupSocket
 } from "../socket/socket";
 import toast from "react-hot-toast";
 
+// Create context
 const SocketContext = createContext();
 
+// Custom hook
 export const useSocket = () => {
   const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error("useSocket must be used within a SocketProvider");
-  }
+  if (!context) throw new Error("useSocket must be used within a SocketProvider");
   return context;
 };
 
+// Provider component
 export const SocketProvider = ({ children }) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [socketId, setSocketId] = useState(null);
   const { user, isAuthenticated } = useAuth();
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Initialize socket connection
   useEffect(() => {
+    console.log("SocketProvider mounted. Initializing socket.");
     initializeSocket();
-    
-    const handleConnectionChange = (connected) => {
+
+    const unsubscribeConnection = onConnectionChange((connected) => {
+      console.log(`Socket connection status changed: ${connected}`);
       setIsConnected(connected);
       if (connected) {
-        setSocketId(getSocketId());
         toast.success("Connected to real-time updates");
       } else {
-        setSocketId(null);
         toast.error("Disconnected from server");
       }
-    };
-
-    const unsubscribe = onConnectionChange(handleConnectionChange);
+    });
 
     return () => {
-      unsubscribe();
+      console.log("SocketProvider unmounting. Cleaning up.");
+      unsubscribeConnection();
       cleanupSocket();
     };
   }, []);
 
-  // Connect/disconnect socket based on authentication
   useEffect(() => {
+    console.log("Auth state changed. isAuthenticated:", isAuthenticated, "User:", user);
     if (isAuthenticated && user) {
-      connectSocket().then(connected => {
-        if (connected) {
-          console.log("✅ Socket connected for user:", user._id);
-        }
-      });
+      console.log("User is authenticated. Attempting to connect socket.");
+      connectSocket();
     } else {
+      console.log("User is not authenticated. Disconnecting socket.");
       disconnectSocket();
       setIsConnected(false);
-      setSocketId(null);
     }
-
-    return () => {
-      if (!isAuthenticated) {
-        disconnectSocket();
-      }
-    };
   }, [isAuthenticated, user]);
 
-  // Setup event listeners when connected
+  // Event listeners when connected
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected) {
+      console.log("Not connected. Skipping event listener setup.");
+      return;
+    }
 
-    // Booking events
-    const unsubscribeBooking = onBookingConfirmed((data) => {
-      console.log("🎫 Booking confirmed:", data);
+    console.log("Socket is connected. Setting up event listeners.");
+
+    const unsubBooking = onBookingConfirmed((data) => {
+      console.log("Event: onBookingConfirmed", data);
       toast.success(`Booking confirmed! Seat ${data.seatNumber}`);
     });
 
-    // Seat events
-    const unsubscribeSeat = onSeatUpdate((data) => {
-      console.log("💺 Seat update:", data);
-      if (data.status === 'booked') {
-        toast(`Seat ${data.seatNumber} was just booked`, { icon: '⚠️' });
+    const unsubSeat = onSeatUpdate((data) => {
+      console.log("Event: onSeatUpdate", data);
+      if (data.status === "booked") {
+        toast(`Seat ${data.seatNumber} was booked`, { icon: "⚠️" });
       }
     });
 
-    // Refund events
-    const unsubscribeRefund = onRefundStatus((data) => {
-      console.log("💰 Refund status:", data);
-      if (data.status === 'approved') {
-        toast.success(`Refund approved: $${data.amount}`);
-      } else if (data.status === 'rejected') {
-        toast.error("Refund request was rejected");
-      }
+    const unsubRefund = onRefundStatus((data) => {
+      console.log("Event: onRefundStatus", data);
+      if (data.status === "approved") toast.success(`Refund approved: $${data.amount}`);
+      else if (data.status === "rejected") toast.error("Refund request rejected");
     });
 
-    // Wallet events
-    const unsubscribeWallet = onWalletUpdate((data) => {
-      console.log("💳 Wallet update:", data);
-      if (data.type === 'deposit') {
-        toast.success(`$${data.amount} added to your wallet`);
-      }
+    const unsubWallet = onWalletUpdate((data) => {
+      console.log("Event: onWalletUpdate", data);
+      if (data.type === "deposit") toast.success(`$${data.amount} added to wallet`);
     });
 
-    // Bus events
-    const unsubscribeBus = onBusStatusUpdate((data) => {
-      console.log("🚌 Bus status update:", data);
-      if (data.status === 'delayed') {
-        toast.error(`Bus ${data.busNumber} is delayed: ${data.reason}`);
-      }
+    const unsubBus = onBusStatusUpdate((data) => {
+      console.log("Event: onBusStatusUpdate", data);
+      if (data.status === "delayed") toast.error(`Bus ${data.busNumber} delayed: ${data.reason}`);
     });
 
-    // User notifications
-    const unsubscribeNotification = onUserNotification((data) => {
-      console.log("🔔 User notification:", data);
-      toast(data.message, { 
-        icon: data.type === 'alert' ? '⚠️' : 'ℹ️' 
-      });
+    const unsubNotify = onUserNotification((data) => {
+      console.log("Event: onUserNotification", data);
+      toast(data.message, { icon: data.type === "alert" ? "⚠️" : "ℹ️" });
     });
 
-    // Cleanup listeners on disconnect
     return () => {
-      unsubscribeBooking();
-      unsubscribeSeat();
-      unsubscribeRefund();
-      unsubscribeWallet();
-      unsubscribeBus();
-      unsubscribeNotification();
+      console.log("Cleaning up socket event listeners.");
+      unsubBooking();
+      unsubSeat();
+      unsubRefund();
+      unsubWallet();
+      unsubBus();
+      unsubNotify();
     };
   }, [isConnected]);
 
-  // Join user-specific room when connected
-  useEffect(() => {
-    if (isConnected && user?._id) {
-      emitEvent('user:join', { userId: user._id });
-      console.log("📡 Joined user room:", user._id);
-    }
-  }, [isConnected, user?._id]);
-
-  // Emit events with connection check
-  const emitEvent = (eventName, data) => {
+  const emitEvent = (event, data) => {
     if (!isConnected) {
+      console.error(`Emit failed: Not connected to server for event "${event}".`);
       toast.error("Not connected to server");
       return false;
     }
-    
     try {
-      emitEvent(eventName, data);
+      // Replace with your actual socket emit logic
+      console.log(`Emit: ${event}`, data);
+      // Example socket.emit: socket.emit(event, data);
       return true;
-    } catch (error) {
-      console.error("Failed to emit event:", error);
+    } catch (err) {
+      console.error(`Emit failed for event "${event}":`, err);
       toast.error("Failed to send update");
       return false;
     }
   };
 
-  // Reconnect manually
   const reconnect = async () => {
+    console.log("Attempting to reconnect.");
     try {
-      const success = await connectSocket();
-      if (success) {
-        toast.success("Reconnecting...");
-      }
-      return success;
-    } catch (error) {
+      await connectSocket();
+      toast.success("Reconnected to server");
+    } catch (err) {
+      console.error("Reconnection failed:", err);
       toast.error("Reconnection failed");
-      return false;
     }
   };
 
   const value = {
     isConnected,
-    socketId,
     emitEvent,
     reconnect,
-    // Specific event emitters for common actions
-    emitBookingRequest: (data) => emitEvent('booking:request', data),
-    emitSeatUpdate: (data) => emitEvent('seats:update', data),
-    emitRefundRequest: (data) => emitEvent('refund:request', data),
-    emitWalletTransaction: (data) => emitEvent('wallet:transaction', data),
   };
 
-  return (
-    <SocketContext.Provider value={value}>
-      {children}
-      {/* Connection status indicator */}
-      {!isConnected && isAuthenticated && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          padding: '10px 16px',
-          backgroundColor: '#ff4757',
-          color: 'white',
-          borderRadius: '8px',
-          fontSize: '14px',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: 'white'
-          }}></div>
-          Disconnected from server
-          <button 
-            onClick={reconnect}
-            style={{
-              marginLeft: '12px',
-              padding: '4px 8px',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              border: 'none',
-              borderRadius: '4px',
-              color: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            Reconnect
-          </button>
-        </div>
-      )}
-    </SocketContext.Provider>
-  );
+  return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };
 
+// Default export for HMR
 export default SocketContext;

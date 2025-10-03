@@ -94,7 +94,7 @@
 //             </PublicRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/login"
 //           element={
@@ -103,7 +103,7 @@
 //             </PublicRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/register"
 //           element={
@@ -112,7 +112,7 @@
 //             </PublicRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/forgot-password"
 //           element={
@@ -121,7 +121,7 @@
 //             </PublicRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/reset-password"
 //           element={
@@ -130,7 +130,7 @@
 //             </PublicRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/verify-email"
 //           element={
@@ -149,7 +149,7 @@
 //             </ProtectedRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/booking"
 //           element={
@@ -158,7 +158,7 @@
 //             </ProtectedRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/booking/:bookingId"
 //           element={
@@ -167,7 +167,7 @@
 //             </ProtectedRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/wallet"
 //           element={
@@ -176,7 +176,7 @@
 //             </ProtectedRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/profile"
 //           element={
@@ -185,7 +185,7 @@
 //             </ProtectedRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/routes"
 //           element={
@@ -194,7 +194,7 @@
 //             </ProtectedRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/buses"
 //           element={
@@ -223,7 +223,7 @@
 //             </AdminRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/admin/dashboard"
 //           element={
@@ -232,7 +232,7 @@
 //             </AdminRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/admin/users"
 //           element={
@@ -241,7 +241,7 @@
 //             </AdminRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/admin/buses"
 //           element={
@@ -250,7 +250,7 @@
 //             </AdminRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/admin/reports"
 //           element={
@@ -269,7 +269,7 @@
 //             </CaptainRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/captain/dashboard"
 //           element={
@@ -278,7 +278,7 @@
 //             </CaptainRoute>
 //           }
 //         />
-        
+
 //         <Route
 //           path="/captain/schedule"
 //           element={
@@ -309,16 +309,16 @@
 
 //   const canAccess = (path, requiredRole = null, requiredPermissions = []) => {
 //     if (!isAuthenticated) return false;
-    
+
 //     if (requiredRole && user?.role !== requiredRole) return false;
-    
+
 //     if (requiredPermissions.length > 0) {
 //       const userPermissions = user?.permissions || [];
-//       return requiredPermissions.every(permission => 
+//       return requiredPermissions.every(permission =>
 //         userPermissions.includes(permission)
 //       );
 //     }
-    
+
 //     return true;
 //   };
 
@@ -352,12 +352,12 @@
 //   ]
 // };
 
-
 import React, { lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import ProtectedRoute from "../components/common/ProtectedRoute";
+import BusesPage from "../pages/BusesPage";
 
 const Home = lazy(() => import("../pages/Home"));
 const Login = lazy(() => import("../pages/Login"));
@@ -367,11 +367,21 @@ const BookingPage = lazy(() => import("../pages/BookingPage"));
 const WalletPage = lazy(() => import("../pages/WalletPage"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
-const pageVariants = { initial:{opacity:0,y:20}, in:{opacity:1,y:0}, out:{opacity:0,y:-20} };
-const pageTransition = { type:"tween", ease:"anticipate", duration:0.5 };
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  in: { opacity: 1, y: 0 },
+  out: { opacity: 0, y: -20 },
+};
+const pageTransition = { type: "tween", ease: "anticipate", duration: 0.5 };
 
 const AnimatedRoute = ({ children }) => (
-  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition}>
+  <motion.div
+    initial="initial"
+    animate="in"
+    exit="out"
+    variants={pageVariants}
+    transition={pageTransition}
+  >
     {children}
   </motion.div>
 );
@@ -388,15 +398,37 @@ const AppRoutes = () => {
     <AnimatePresence mode="wait">
       <Suspense fallback={<RouteLoading />}>
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<AnimatedRoute><Home /></AnimatedRoute>} />
-          <Route path="/login" element={<AnimatedRoute><Login /></AnimatedRoute>} />
-          <Route path="/register" element={<AnimatedRoute><Register /></AnimatedRoute>} />
-
+          <Route
+            path="/"
+            element={
+              <AnimatedRoute>
+                <Home />
+              </AnimatedRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <AnimatedRoute>
+                <Login />
+              </AnimatedRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <AnimatedRoute>
+                <Register />
+              </AnimatedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <AnimatedRoute><Dashboard /></AnimatedRoute>
+                <AnimatedRoute>
+                  <Dashboard />
+                </AnimatedRoute>
               </ProtectedRoute>
             }
           />
@@ -404,7 +436,9 @@ const AppRoutes = () => {
             path="/bookings"
             element={
               <ProtectedRoute>
-                <AnimatedRoute><BookingPage /></AnimatedRoute>
+                <AnimatedRoute>
+                  <BookingPage />
+                </AnimatedRoute>
               </ProtectedRoute>
             }
           />
@@ -412,12 +446,31 @@ const AppRoutes = () => {
             path="/wallet"
             element={
               <ProtectedRoute>
-                <AnimatedRoute><WalletPage /></AnimatedRoute>
+                <AnimatedRoute>
+                  <WalletPage />
+                </AnimatedRoute>
               </ProtectedRoute>
             }
           />
-
-          <Route path="*" element={<AnimatedRoute><NotFound /></AnimatedRoute>} />
+          import BusesPage from "../pages/BusesPage";
+          <Route
+            path="/buses"
+            element={
+              <ProtectedRoute>
+                <AnimatedRoute>
+                  <BusesPage />
+                </AnimatedRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <AnimatedRoute>
+                <NotFound />
+              </AnimatedRoute>
+            }
+          />
         </Routes>
       </Suspense>
     </AnimatePresence>
@@ -425,4 +478,3 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
-

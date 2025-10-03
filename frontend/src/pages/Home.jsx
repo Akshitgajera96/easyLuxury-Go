@@ -62,18 +62,20 @@ const Home = () => {
     try {
       setLoading(true);
       const [popular, featured] = await Promise.all([
-        getPopularRoutes(6),
-        getFeaturedRoutes(),
+        getPopularRoutes({ limit: 6, city: 'Dhamdod' }),
+        getFeaturedRoutes({ city: 'Dhamdod' }),
       ]);
-      setPopularRoutes(popular);
-      setFeaturedRoutes(featured);
+      setPopularRoutes(popular?.data || []);      // ✅ optional chaining
+      setFeaturedRoutes(featured?.data || []);    // ✅ optional chaining
     } catch (error) {
       toast.error("Failed to load route data");
-      console.error("Initial data error:",
+      console.error(
+        "Initial data error:",
         error.response?.status,
         error.response?.statusText,
         error.response?.data || error.message,
-        error);
+        error
+      );
     } finally {
       setLoading(false);
     }
@@ -85,7 +87,7 @@ const Home = () => {
         setSearchLoading(true);
         try {
           const results = await searchRoutes(searchData);
-          setSuggestions(results);
+          setSuggestions(results || []);   // ✅ fallback to empty array
           setShowSuggestions(true);
         } catch (error) {
           console.error("Search error:", error);
@@ -235,48 +237,35 @@ const Home = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
             <div className="space-y-2">
-              <Label
-                htmlFor="from"
-                className="flex items-center text-sm font-medium"
-              >
+              <Label htmlFor="from" className="flex items-center text-sm font-medium">
                 <MapPin className="w-4 h-4 mr-2" />
                 From
               </Label>
-              <div className="relative">
-                <Input
-                  id="from"
-                  placeholder="Departure city"
-                  value={searchData.from}
-                  onChange={(e) => handleSearchChange("from", e.target.value)}
-                  className="text-lg py-6"
-                />
-              </div>
+              <Input
+                id="from"
+                placeholder="Departure city"
+                value={searchData.from}
+                onChange={(e) => handleSearchChange("from", e.target.value)}
+                className="text-lg py-6"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="to"
-                className="flex items-center text-sm font-medium"
-              >
+              <Label htmlFor="to" className="flex items-center text-sm font-medium">
                 <Navigation className="w-4 h-4 mr-2" />
                 To
               </Label>
-              <div className="relative">
-                <Input
-                  id="to"
-                  placeholder="Destination city"
-                  value={searchData.to}
-                  onChange={(e) => handleSearchChange("to", e.target.value)}
-                  className="text-lg py-6"
-                />
-              </div>
+              <Input
+                id="to"
+                placeholder="Destination city"
+                value={searchData.to}
+                onChange={(e) => handleSearchChange("to", e.target.value)}
+                className="text-lg py-6"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="date"
-                className="flex items-center text-sm font-medium"
-              >
+              <Label htmlFor="date" className="flex items-center text-sm font-medium">
                 <Calendar className="w-4 h-4 mr-2" />
                 Travel Date
               </Label>
@@ -291,10 +280,7 @@ const Home = () => {
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="passengers"
-                className="flex items-center text-sm font-medium"
-              >
+              <Label htmlFor="passengers" className="flex items-center text-sm font-medium">
                 <Users className="w-4 h-4 mr-2" />
                 Passengers
               </Label>
@@ -314,7 +300,7 @@ const Home = () => {
 
           <Button
             onClick={() => setShowSuggestions(true)}
-            disabled={searchLoading} // ✅
+            disabled={searchLoading}
             className="w-full py-6 text-lg"
             size="lg"
           >

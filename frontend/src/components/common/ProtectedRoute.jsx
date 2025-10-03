@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const ProtectedRoute = ({ 
   children, 
-  requiredRole = null, 
+  requiredRole,   // ✅ added here
   requiredPermissions = [],
   redirectTo = "/login",
   showLoading = true,
@@ -33,10 +33,9 @@ const ProtectedRoute = ({
 
   // Redirect if not authenticated
   if (!isAuthenticated) {
-    // Store the attempted URL for redirecting after login
     const redirectPath = location.pathname + location.search;
     localStorage.setItem("redirectAfterLogin", redirectPath);
-    
+
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
   }
 
@@ -45,7 +44,7 @@ const ProtectedRoute = ({
     if (FallbackComponent) {
       return <FallbackComponent />;
     }
-    
+
     return (
       <Navigate 
         to="/unauthorized" 

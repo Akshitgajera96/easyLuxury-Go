@@ -1,7 +1,7 @@
 const express = require("express");
 const { body, param, query } = require("express-validator");
 const {
-  cancelTicket, // ✅ changed from requestRefund to cancelTicket
+  cancelTicket,
   getRefundHistory,
   getRefundDetails,
   processManualRefund,
@@ -9,132 +9,89 @@ const {
   updateRefundStatus,
   exportRefunds
 } = require("../controllers/refundController");
-const { protect, admin } = require("../middlewares/authMiddleware"); // ✅ removed authorizeResourceOwner
+
+const {
+  protect,
+  requireRole,
+  validate
+} = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Validation rules
+/**
+ * -------------------------
+ * Validation middlewares
+ * -------------------------
+ */
+
+// Cancel ticket (request refund)
 const cancelTicketValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Valid ticket ID is required'),
-  
-  body('cancellationReason')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Cancellation reason cannot exceed 500 characters')
+  param('id').isMongoId().withMessage('Valid ticket ID is required'),
+  body('cancellationReason').optional().trim().isLength({ max: 500 }).withMessage('Cancellation reason max 500 chars'),
+  validate
 ];
 
+// Manual refund (admin)
 const manualRefundValidation = [
-  body('ticketId')
-    .isMongoId()
-    .withMessage('Valid ticket ID is required'),
-  
-  body('refundAmount')
-    .isFloat({ min: 0.01 })
-    .withMessage('Valid refund amount is required'),
-  
-  body('reason')
-    .notEmpty()
-    .withMessage('Reason is required')
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Reason cannot exceed 500 characters')
+  body('ticketId').isMongoId().withMessage('Valid ticket ID is required'),
+  body('refundAmount').isFloat({ min: 0.01 }).withMessage('Valid refund amount required'),
+  body('reason').notEmpty().trim().isLength({ max: 500 }).withMessage('Reason is required and max 500 chars'),
+  validate
 ];
 
+// Update refund status (admin)
 const updateRefundStatusValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Valid refund ID is required'),
-  
-  body('status')
-    .isIn(['pending', 'approved', 'rejected', 'processing', 'refunded', 'failed']) // ✅ simplified status options
-    .withMessage('Invalid refund status'),
-  
-  body('notes')
-    .optional()
-    .trim()
-    .isLength({ max: 1000 })
-    .withMessage('Notes cannot exceed 1000 characters')
+  param('id').isMongoId().withMessage('Valid refund ID is required'),
+  body('status').isIn(['pending','approved','rejected','processing','refunded','failed']).withMessage('Invalid refund status'),
+  body('notes').optional().trim().isLength({ max: 1000 }).withMessage('Notes cannot exceed 1000 chars'),
+  validate
 ];
 
+// Refund ID param
 const refundIdParamValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Valid refund ID is required')
+  param('id').isMongoId().withMessage('Valid refund ID is required'),
+  validate
 ];
 
+// Query validation (for history, admin filters)
 const queryValidation = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  
-  query('status')
-    .optional()
-    .isIn(['pending', 'approved', 'rejected', 'processing', 'refunded', 'failed']) // ✅ simplified status options
-    .withMessage('Invalid refund status'),
-  
-  query('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid start date is required'),
-  
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Valid end date is required'),
-  
-  query('type')
-    .optional()
-    .isIn(['user_cancelled', 'bus_cancelled', 'service_issue', 'duplicate_booking', 'payment_error', 'schedule_change', 'other'])
-    .withMessage('Invalid refund type')
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be 1-100'),
+  query('status').optional().isIn(['pending','approved','rejected','processing','refunded','failed']).withMessage('Invalid refund status'),
+  query('startDate').optional().isISO8601().withMessage('Valid start date required'),
+  query('endDate').optional().isISO8601().withMessage('Valid end date required'),
+  query('type').optional().isIn(['user_cancelled','bus_cancelled','service_issue','duplicate_booking','payment_error','schedule_change','other']).withMessage('Invalid refund type'),
+  validate
 ];
 
-// @route   POST /api/refunds/request/:id
-// @desc    Request refund for a ticket
-// @access  Private (User - own tickets)
-router.post("/request/:id", protect, cancelTicketValidation, cancelTicket); // ✅ changed to cancelTicket
+/**
+ * -------------------------
+ * Routes
+ * -------------------------
+ */
 
-// @route   GET /api/refunds/history
-// @desc    Get user's refund history
-// @access  Private (User)
+// User: request refund (cancel ticket)
+router.post("/request/:id", protect, cancelTicketValidation, cancelTicket);
+
+// User: refund history
 router.get("/history", protect, queryValidation, getRefundHistory);
 
-// @route   GET /api/refunds/:id
-// @desc    Get refund details by ID
-// @access  Private (User - own refunds, Admin - all refunds)
+// User/Admin: refund details
 router.get("/:id", protect, refundIdParamValidation, getRefundDetails);
 
-// @route   POST /api/refunds/admin/manual
-// @desc    Process manual refund (admin)
-// @access  Private (Admin)
-router.post("/admin/manual", protect, admin, manualRefundValidation, processManualRefund);
+// Admin: manual refund
+router.post("/admin/manual", protect, requireRole('admin'), manualRefundValidation, processManualRefund);
 
-// @route   PATCH /api/refunds/admin/:id/status
-// @desc    Update refund status (admin)
-// @access  Private (Admin)
-router.patch("/admin/:id/status", protect, admin, updateRefundStatusValidation, updateRefundStatus);
+// Admin: update refund status
+router.patch("/admin/:id/status", protect, requireRole('admin'), updateRefundStatusValidation, updateRefundStatus);
 
-// @route   GET /api/refunds/admin/stats
-// @desc    Get refund statistics (admin)
-// @access  Private (Admin)
-router.get("/admin/stats", protect, admin, queryValidation, getRefundStats); // ✅ added queryValidation
+// Admin: refund statistics
+router.get("/admin/stats", protect, requireRole('admin'), queryValidation, getRefundStats);
 
-// @route   GET /api/refunds/admin/export
-// @desc    Export refunds data (admin)
-// @access  Private (Admin)
-router.get("/admin/export", protect, admin, queryValidation, exportRefunds); // ✅ added queryValidation
+// Admin: export refunds
+router.get("/admin/export", protect, requireRole('admin'), queryValidation, exportRefunds);
 
-// @route   GET /api/refunds/admin/all
-// @desc    Get all refunds with filtering (admin)
-// @access  Private (Admin)
-router.get("/admin/all", protect, admin, queryValidation, getRefundHistory);
+// Admin: all refunds with filtering
+router.get("/admin/all", protect, requireRole('admin'), queryValidation, getRefundHistory);
 
 module.exports = router;

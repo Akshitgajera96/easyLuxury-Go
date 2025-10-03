@@ -1,217 +1,196 @@
-// backend/middleware/authMiddleware.js
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'replace_with_strong_secret';
-const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
+const User = require("../models/User");
+const Captain = require("../models/Captain");
+const { verifyToken } = require("../utils/jwtUtils");
+const { validationResult, check } = require("express-validator");
 
 /**
- * Helper - extract token from headers, cookies or query param
+ * Extract JWT token from request
  */
-function getTokenFromRequest(req) {
-  // Authorization header
-  const auth = req.headers?.authorization || req.headers?.Authorization;
-  if (auth && typeof auth === 'string') {
-    const parts = auth.split(' ');
-    if (parts.length === 2 && /^Bearer$/i.test(parts[0])) return parts[1];
-    // support "Token <token>" or direct token
-    return parts[1] || parts[0];
+const getTokenFromRequest = (req) => {
+  if (req.headers.authorization?.startsWith("Bearer ")) {
+    return req.headers.authorization.split(" ")[1];
   }
-
-  // x-access-token header
-  if (req.headers && req.headers['x-access-token']) return req.headers['x-access-token'];
-
-  // cookie (if you use cookie-based token)
-  if (req.cookies && req.cookies.token) return req.cookies.token;
-
-  // query param ?token=...
-  if (req.query && req.query.token) return req.query.token;
-
+  if (req.cookies?.token) return req.cookies.token;
+  if (req.query?.token) return req.query.token;
   return null;
-}
+};
 
 /**
- * Verify token and attach user id+role to req.user (used by protect and optionalAuth)
+ * Verify token and attach user or captain to request
  */
-async function verifyAndAttachUser(req, token) {
-  try {
-    if (!token) return null;
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded || !decoded.id) return null;
-
-    const user = await User.findById(decoded.id).select('_id role isActive');
-    if (!user || !user.isActive) return null;
-
-    // attach minimal user info
-    req.user = { id: user._id.toString(), role: user.role };
-    return req.user;
-  } catch (err) {
-    // propagate JWT errors up to caller (so caller can decide behavior)
+const verifyAndAttachUser = async (req, token, requireAuth = true) => {
+  if (!token) {
+    if (!requireAuth) return;
+    const err = new Error("Token missing");
+    err.statusCode = 401;
     throw err;
   }
-}
+
+  const { valid, payload, error } = verifyToken(token);
+
+  if (!valid) {
+    if (!requireAuth) return;
+    const err = new Error(error || "Invalid token");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  // Try to find user first, then captain
+  let account = await User.findById(payload.id);
+  // let role = "user";  // <-- આ લાઈન કાઢી નાખો
+
+  if (!account) {
+    account = await Captain.findById(payload.id);
+    if (account) {
+        req.user = account;
+        req.role = "captain"; // Captain role
+    }
+  } else {
+    req.user = account;
+    // The role should come from the user object in the database
+    req.role = account.role || "user"; // <-- આ લાઈન ઉમેરો (assuming user model has a 'role' field)
+  }
+
+  if (!account) {
+    const err = new Error("Account not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (account.isActive === false) {
+    const err = new Error("Account disabled");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  req.user = account;
+  req.role = role;
+};
 
 /**
- * Protect middleware - require a valid token
+ * Protect routes (require authentication)
  */
 const protect = async (req, res, next) => {
   try {
     const token = getTokenFromRequest(req);
     if (!token) {
-      return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
+      return res.status(401).json({ success: false, msg: "Not authorized, no token" });
     }
 
-    try {
-      await verifyAndAttachUser(req, token);
-      return next();
-    } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ success: false, message: 'Token expired. Please login again.' });
-      }
-      if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json({ success: false, message: 'Invalid token.' });
-      }
-      throw err;
-    }
+    await verifyAndAttachUser(req, token, true);
+    next();
   } catch (err) {
-    console.error('Auth Middleware Error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during authentication.' });
+    res
+      .status(err.statusCode || 500)
+      .json({ success: false, msg: err.message || "Authentication failed" });
   }
 };
 
 /**
- * optionalAuth - does NOT block request if token missing/invalid.
- * If token valid, attaches req.user.
+ * Optional authentication (attach user/captain if token exists, otherwise continue)
  */
 const optionalAuth = async (req, res, next) => {
-  const token = getTokenFromRequest(req);
-  if (!token) return next();
   try {
-    await verifyAndAttachUser(req, token);
+    const token = getTokenFromRequest(req);
+    if (token) {
+      await verifyAndAttachUser(req, token, false);
+    }
+    next();
   } catch (err) {
-    console.warn('optionalAuth token error:', err.message);
-    // intentionally ignore token errors for optional auth
+    res
+      .status(err.statusCode || 500)
+      .json({ success: false, msg: err.message || "Optional authentication failed" });
   }
-  return next();
 };
 
 /**
- * Generic role-checking middleware: requireRole('admin'), requireRole('captain','admin')
+ * Role-based access control
  */
-const requireRole = (...allowedRoles) => {
+const requireRole = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, message: 'Authentication required.' });
+      return res.status(401).json({ success: false, msg: "Not authenticated" });
     }
-    const role = req.user.role;
-    if (!allowedRoles.includes(role)) {
-      return res.status(403).json({ success: false, message: 'Access denied. Insufficient privileges.' });
+    if (!roles.includes(req.role)) {
+      return res.status(403).json({ success: false, msg: "Access denied" });
     }
-    return next();
+    next();
   };
 };
 
 /**
- * authorizeResourceOwner(resourceField)
- * resourceField can be:
- *   - 'params' to check req.params.userId or req.params.id
- *   - a field name (e.g., 'user') to check req.body.user or req.query.user or req.params.user
- *   - or a dot path like 'body.booking.user'
+ * Shortcut for admin routes
  */
-const authorizeResourceOwner = (resourceField = 'user') => {
+const admin = requireRole("admin");
+
+/**
+ * Ensure the user is the owner of the resource
+ */
+const authorizeResourceOwner = (getOwnerIdFn) => {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required.' });
-
-    // Admins bypass ownership check
-    if (req.user.role === 'admin') return next();
-
-    // Helper to read nested fields safely
-    const readField = (obj, path) => {
-      if (!obj || !path) return undefined;
-      const parts = path.split('.');
-      let cur = obj;
-      for (const p of parts) {
-        if (cur == null) return undefined;
-        cur = cur[p];
-      }
-      return cur;
-    };
-
-    let ownerId;
-
-    if (resourceField === 'params') {
-      ownerId = req.params?.userId || req.params?.id || req.params?.ownerId;
-    } else {
-      // check in body, params, query in that order
-      ownerId = readField(req.body, resourceField) || readField(req.params, resourceField) || readField(req.query, resourceField);
+    if (!req.user) {
+      return res.status(401).json({ success: false, msg: "Not authenticated" });
     }
-
-    if (!ownerId) {
-      return res.status(403).json({ success: false, message: 'Access denied. Resource ownership could not be verified.' });
+    const ownerId = getOwnerIdFn(req);
+    if (req.user._id.toString() !== ownerId.toString()) {
+      return res.status(403).json({ success: false, msg: "Not authorized for this resource" });
     }
-
-    if (ownerId.toString() !== req.user.id.toString()) {
-      return res.status(403).json({ success: false, message: 'Access denied. You can only access your own resources.' });
-    }
-
-    return next();
+    next();
   };
 };
 
 /**
- * Helper for sockets or other non-express contexts
- * returns user object {id, role} or null
+ * Validate request body using express-validator
  */
-const verifyTokenForSocket = async (token) => {
-  try {
-    if (!token) return null;
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded || !decoded.id) return null;
-    const user = await User.findById(decoded.id).select('_id role isActive');
-    if (!user || !user.isActive) return null;
-    return { id: user._id.toString(), role: user.role };
-  } catch (err) {
-    return null;
-  }
-};
-
-/**
- * Rate limiter factory - to use with express-rate-limit
- * Example in route:
- *   const rateLimit = require('express-rate-limit');
- *   router.post('/login', rateLimit(authRateLimiter()), loginHandler);
- */
-const authRateLimiter = (options = {}) => {
-  const windowMs = options.windowMs || 15 * 60 * 1000; // 15m
-  const max = options.max || 5;
-  return {
-    windowMs,
-    max,
-    message: {
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
       success: false,
-      message: options.message || 'Too many authentication attempts. Please try again later.'
-    },
-    standardHeaders: true,
-    legacyHeaders: false
-  };
+      msg: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+  next();
 };
 
 /**
- * JWT utilities
+ * Predefined validation schemas
  */
-const generateToken = (userId, role) => {
-  return jwt.sign({ id: userId, role }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
+const validators = {
+  registerUser: [
+    check("name").notEmpty().withMessage("Name is required"),
+    check("email").isEmail().withMessage("Valid email is required"),
+    check("phone").isMobilePhone().withMessage("Valid phone number is required"),
+    check("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+  ],
+  loginUser: [
+    check("email").isEmail().withMessage("Valid email is required"),
+    check("password").notEmpty().withMessage("Password is required"),
+  ],
+  registerCaptain: [
+    check("fullName").notEmpty().withMessage("Full name is required"),
+    check("email").isEmail().withMessage("Valid email is required"),
+    check("phone").isMobilePhone().withMessage("Valid phone number is required"),
+    check("licenseNumber").notEmpty().withMessage("License number is required"),
+    check("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+  ],
+  loginCaptain: [
+    check("email").isEmail().withMessage("Valid email is required"),
+    check("password").notEmpty().withMessage("Password is required"),
+  ],
+  changePassword: [
+    check("oldPassword").notEmpty().withMessage("Old password is required"),
+    check("newPassword").isLength({ min: 6 }).withMessage("New password must be at least 6 characters"),
+  ],
 };
 
 module.exports = {
   protect,
   optionalAuth,
-  requireRole,            // usage: requireRole('admin') or requireRole('captain','admin')
-  authorizeResourceOwner, // usage: authorizeResourceOwner('params') or authorizeResourceOwner('user')
-  authRateLimiter,
-  generateToken,
-  verifyTokenForSocket,
-  // backward-compat helpers (if you prefer explicit named ones)
-  admin: requireRole('admin'),
-  captain: requireRole('captain', 'admin')
+  requireRole,
+  admin, // now available for routes
+  authorizeResourceOwner,
+  validate,
+  validators,
 };

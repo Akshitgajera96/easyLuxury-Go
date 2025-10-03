@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const Captain = require('../models/captain'); // keep path consistent with your project
+const Captain = require('../models/Captain'); // keep path consistent with your project
 const Bus = require('../models/Bus');
 
 /**

@@ -1,34 +1,47 @@
-const { getSocketIdByUserId, sendMessageToSocketId, getIO, getUserRooms } = require('../socket');
-const Booking = require('../models/Booking');
-const Bus = require('../models/Bus');
-const User = require('../models/User');
+const {
+  getSocketIdByUserId,
+  sendMessageToSocketId,
+  getIO,
+  getUserRooms,
+} = require("../socket");
+const Booking = require("../models/Booking");
+const Bus = require("../models/Bus");
+const User = require("../models/User");
+
+/**
+ * -------------------------
+ * Booking Notifications
+ * -------------------------
+ */
 
 // Notify user about booking confirmation
 async function notifyBookingConfirmation(userId, bookingDetails) {
   try {
     const socketId = getSocketIdByUserId(userId);
-    if (socketId) {
-      // Populate booking details if not already populated
-      const populatedBooking = await Booking.findById(bookingDetails._id || bookingDetails)
-        .populate('user', 'name email')
-        .populate('bus', 'busNumber route from to departureTime');
-      
-      sendMessageToSocketId(socketId, 'bookingConfirmed', {
+    const populatedBooking = await Booking.findById(
+      bookingDetails._id || bookingDetails
+    )
+      .populate("user", "name email")
+      .populate("bus", "busNumber route from to departureTime");
+
+    if (socketId && populatedBooking) {
+      sendMessageToSocketId(socketId, "bookingConfirmed", {
         success: true,
         booking: populatedBooking,
-        message: 'Booking confirmed successfully!',
-        timestamp: new Date()
+        message: "Booking confirmed successfully!",
+        timestamp: new Date().toISOString(),
       });
     }
-    
-    // Also send push notification (if implemented)
-    await sendPushNotification(userId, {
-      title: 'Booking Confirmed',
-      body: `Your booking for ${populatedBooking?.bus?.route} has been confirmed.`,
-      data: { bookingId: populatedBooking?._id.toString() }
-    });
+
+    if (populatedBooking) {
+      await sendPushNotification(userId, {
+        title: "Booking Confirmed",
+        body: `Your booking for ${populatedBooking.bus?.route} has been confirmed.`,
+        data: { bookingId: populatedBooking._id.toString() },
+      });
+    }
   } catch (error) {
-    console.error('Error in notifyBookingConfirmation:', error);
+    console.error("Error in notifyBookingConfirmation:", error);
   }
 }
 
@@ -37,242 +50,260 @@ async function notifyCancellation(userId, cancellationDetails) {
   try {
     const socketId = getSocketIdByUserId(userId);
     if (socketId) {
-      sendMessageToSocketId(socketId, 'bookingCancelled', {
+      sendMessageToSocketId(socketId, "bookingCancelled", {
         success: true,
         ...cancellationDetails,
-        message: 'Booking cancelled successfully',
-        timestamp: new Date()
+        message: "Booking cancelled successfully",
+        timestamp: new Date().toISOString(),
       });
     }
-    
-    // Send push notification
+
     await sendPushNotification(userId, {
-      title: 'Booking Cancelled',
+      title: "Booking Cancelled",
       body: `Your booking has been cancelled. Refund: $${cancellationDetails.refundAmount || 0}`,
-      data: { bookingId: cancellationDetails.bookingId }
+      data: { bookingId: cancellationDetails.bookingId },
     });
   } catch (error) {
-    console.error('Error in notifyCancellation:', error);
+    console.error("Error in notifyCancellation:", error);
   }
 }
 
-// Real-time seat locking during selection
-function broadcastSeatLock(busId, seatNumbers, userId, duration = 300000) { // 5 minutes default
+// Notify user about booking status update
+async function notifyBookingStatusUpdate(
+  userId,
+  bookingId,
+  newStatus,
+  reason = ""
+) {
+  try {
+    const socketId = getSocketIdByUserId(userId);
+    const booking = await Booking.findById(bookingId).populate(
+      "bus",
+      "busNumber route"
+    );
+
+    if (socketId && booking) {
+      sendMessageToSocketId(socketId, "bookingStatusUpdated", {
+        bookingId,
+        newStatus,
+        reason,
+        bookingDetails: booking,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const statusMessages = {
+      confirmed: {
+        title: "Booking Confirmed",
+        body: "Your booking has been confirmed",
+      },
+      cancelled: {
+        title: "Booking Cancelled",
+        body: "Your booking has been cancelled",
+      },
+      refunded: {
+        title: "Refund Processed",
+        body: "Your refund has been processed",
+      },
+      boarding: {
+        title: "Boarding Started",
+        body: "Boarding has started for your bus",
+      },
+    };
+
+    if (statusMessages[newStatus]) {
+      await sendPushNotification(userId, {
+        ...statusMessages[newStatus],
+        data: { bookingId, newStatus },
+      });
+    }
+  } catch (error) {
+    console.error("Error in notifyBookingStatusUpdate:", error);
+  }
+}
+
+/**
+ * -------------------------
+ * Seat Locking
+ * -------------------------
+ */
+
+function broadcastSeatLock(busId, seatNumbers, userId, duration = 300000) {
   try {
     const io = getIO();
     if (io && busId && seatNumbers?.length > 0) {
-      io.to(`bus_${busId}`).emit('seatLocked', {
+      io.to(`bus_${busId}`).emit("seatLocked", {
         seatNumbers,
         lockedBy: userId,
-        expiresAt: new Date(Date.now() + duration),
-        duration: duration
+        expiresAt: new Date(Date.now() + duration).toISOString(),
+        duration,
       });
-      
-      // Set timeout to automatically release seats
+
       setTimeout(() => {
         broadcastSeatRelease(busId, seatNumbers);
       }, duration);
     }
   } catch (error) {
-    console.error('Error in broadcastSeatLock:', error);
+    console.error("Error in broadcastSeatLock:", error);
   }
 }
 
-// Release locked seats
 function broadcastSeatRelease(busId, seatNumbers) {
   try {
     const io = getIO();
     if (io && busId && seatNumbers?.length > 0) {
-      io.to(`bus_${busId}`).emit('seatReleased', {
+      io.to(`bus_${busId}`).emit("seatReleased", {
         seatNumbers,
-        releasedAt: new Date()
+        releasedAt: new Date().toISOString(),
       });
     }
   } catch (error) {
-    console.error('Error in broadcastSeatRelease:', error);
+    console.error("Error in broadcastSeatRelease:", error);
   }
 }
 
-// Notify user about booking status update
-async function notifyBookingStatusUpdate(userId, bookingId, newStatus, reason = '') {
-  try {
-    const socketId = getSocketIdByUserId(userId);
-    if (socketId) {
-      const booking = await Booking.findById(bookingId)
-        .populate('bus', 'busNumber route');
-      
-      sendMessageToSocketId(socketId, 'bookingStatusUpdated', {
-        bookingId,
-        newStatus,
-        reason,
-        bookingDetails: booking,
-        timestamp: new Date()
-      });
-    }
-    
-    // Send push notification based on status
-    const statusMessages = {
-      confirmed: { title: 'Booking Confirmed', body: 'Your booking has been confirmed' },
-      cancelled: { title: 'Booking Cancelled', body: 'Your booking has been cancelled' },
-      refunded: { title: 'Refund Processed', body: 'Your refund has been processed' },
-      boarding: { title: 'Boarding Started', body: 'Boarding has started for your bus' }
-    };
-    
-    if (statusMessages[newStatus]) {
-      await sendPushNotification(userId, {
-        ...statusMessages[newStatus],
-        data: { bookingId, newStatus }
-      });
-    }
-  } catch (error) {
-    console.error('Error in notifyBookingStatusUpdate:', error);
-  }
-}
+/**
+ * -------------------------
+ * Bus & Schedule Updates
+ * -------------------------
+ */
 
-// Notify about bus schedule changes
 async function notifyScheduleChange(bookingIds, changeDetails) {
   try {
     const io = getIO();
-    
+
     for (const bookingId of bookingIds) {
-      const booking = await Booking.findById(bookingId).populate('user');
-      if (booking && booking.user) {
+      const booking = await Booking.findById(bookingId).populate("user");
+      if (booking?.user) {
         const socketId = getSocketIdByUserId(booking.user._id);
         if (socketId) {
-          sendMessageToSocketId(socketId, 'scheduleChanged', {
+          sendMessageToSocketId(socketId, "scheduleChanged", {
             bookingId,
             changeDetails,
-            timestamp: new Date()
+            timestamp: new Date().toISOString(),
           });
         }
-        
-        // Send push notification
+
         await sendPushNotification(booking.user._id, {
-          title: 'Schedule Change',
+          title: "Schedule Change",
           body: `Your bus schedule has been updated: ${changeDetails.reason}`,
-          data: { bookingId, changeDetails }
+          data: { bookingId, changeDetails },
         });
       }
     }
   } catch (error) {
-    console.error('Error in notifyScheduleChange:', error);
+    console.error("Error in notifyScheduleChange:", error);
   }
 }
 
-// Real-time bus location updates (for captains)
 function broadcastBusLocation(busId, locationData) {
   try {
     const io = getIO();
     if (io && busId) {
-      io.to(`bus_${busId}_tracking`).emit('busLocationUpdate', {
+      io.to(`bus_${busId}_tracking`).emit("busLocationUpdate", {
         busId,
         location: locationData,
-        timestamp: new Date()
+        timestamp: new Date().toISOString(),
       });
     }
   } catch (error) {
-    console.error('Error in broadcastBusLocation:', error);
+    console.error("Error in broadcastBusLocation:", error);
   }
 }
 
-// Notify about available seats (waitlist)
+/**
+ * -------------------------
+ * Seat Availability & Reminders
+ * -------------------------
+ */
+
 async function notifySeatAvailable(waitlistUsers, busId, seatNumbers) {
   try {
     const io = getIO();
     const bus = await Bus.findById(busId);
-    
+
     for (const userId of waitlistUsers) {
       const socketId = getSocketIdByUserId(userId);
       if (socketId) {
-        sendMessageToSocketId(socketId, 'seatAvailable', {
+        sendMessageToSocketId(socketId, "seatAvailable", {
           busId,
           busDetails: bus,
           seatNumbers,
-          availableUntil: new Date(Date.now() + 600000), // 10 minutes
-          timestamp: new Date()
+          availableUntil: new Date(Date.now() + 600000).toISOString(),
+          timestamp: new Date().toISOString(),
         });
       }
-      
+
       await sendPushNotification(userId, {
-        title: 'Seat Available!',
+        title: "Seat Available!",
         body: `Seats are now available on ${bus?.busNumber} to ${bus?.route?.to}`,
-        data: { busId, seatNumbers }
+        data: { busId, seatNumbers },
       });
     }
   } catch (error) {
-    console.error('Error in notifySeatAvailable:', error);
+    console.error("Error in notifySeatAvailable:", error);
   }
 }
 
-// Booking reminder notifications
 async function sendBookingReminders() {
   try {
-    // Find bookings happening in the next 24 hours
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     const upcomingBookings = await Booking.find({
       date: { $lte: tomorrow },
-      status: 'confirmed'
-    }).populate('user bus');
-    
+      status: "confirmed",
+    }).populate("user bus");
+
     for (const booking of upcomingBookings) {
       if (booking.user) {
         const socketId = getSocketIdByUserId(booking.user._id);
         if (socketId) {
-          sendMessageToSocketId(socketId, 'bookingReminder', {
+          sendMessageToSocketId(socketId, "bookingReminder", {
             bookingId: booking._id,
             busDetails: booking.bus,
             departureTime: booking.time,
-            message: 'Your trip is coming up soon!',
-            timestamp: new Date()
+            message: "Your trip is coming up soon!",
+            timestamp: new Date().toISOString(),
           });
         }
-        
+
         await sendPushNotification(booking.user._id, {
-          title: 'Trip Reminder',
+          title: "Trip Reminder",
           body: `Your bus to ${booking.bus?.route?.to} departs tomorrow at ${booking.time}`,
-          data: { bookingId: booking._id }
+          data: { bookingId: booking._id },
         });
       }
     }
   } catch (error) {
-    console.error('Error in sendBookingReminders:', error);
+    console.error("Error in sendBookingReminders:", error);
   }
 }
 
-// Emergency notifications
+/**
+ * -------------------------
+ * Emergency & Stats
+ * -------------------------
+ */
+
 function broadcastEmergency(busId, emergencyDetails) {
   try {
     const io = getIO();
     if (io && busId) {
-      io.to(`bus_${busId}`).emit('emergencyAlert', {
+      io.to(`bus_${busId}`).emit("emergencyAlert", {
         busId,
         emergency: emergencyDetails,
-        timestamp: new Date(),
-        instructions: emergencyDetails.instructions || 'Please follow crew instructions'
+        timestamp: new Date().toISOString(),
+        instructions:
+          emergencyDetails.instructions ||
+          "Please follow crew instructions",
       });
     }
   } catch (error) {
-    console.error('Error in broadcastEmergency:', error);
+    console.error("Error in broadcastEmergency:", error);
   }
 }
 
-// Helper function for push notifications (would integrate with your notification service)
-async function sendPushNotification(userId, notification) {
-  try {
-    // This would integrate with Firebase Cloud Messaging, OneSignal, etc.
-    const user = await User.findById(userId);
-    if (user && user.notificationToken) {
-      // Implementation would go here based on your notification service
-      console.log('Would send push notification to:', userId, notification);
-    }
-  } catch (error) {
-    console.error('Error sending push notification:', error);
-  }
-}
-
-// Get real-time booking statistics
 async function broadcastBookingStats() {
   try {
     const io = getIO();
@@ -280,28 +311,47 @@ async function broadcastBookingStats() {
       const stats = await Booking.aggregate([
         {
           $match: {
-            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-          }
+            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          },
         },
         {
           $group: {
             _id: null,
             totalBookings: { $sum: 1 },
-            totalRevenue: { $sum: '$price' },
+            totalRevenue: { $sum: "$price" },
             confirmedBookings: {
-              $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] }
-            }
-          }
-        }
+              $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] },
+            },
+          },
+        },
       ]);
-      
-      io.to('admin_dashboard').emit('bookingStatsUpdate', {
-        stats: stats[0] || { totalBookings: 0, totalRevenue: 0, confirmedBookings: 0 },
-        timestamp: new Date()
+
+      io.to("admin_dashboard").emit("bookingStatsUpdate", {
+        stats:
+          stats[0] || { totalBookings: 0, totalRevenue: 0, confirmedBookings: 0 },
+        timestamp: new Date().toISOString(),
       });
     }
   } catch (error) {
-    console.error('Error in broadcastBookingStats:', error);
+    console.error("Error in broadcastBookingStats:", error);
+  }
+}
+
+/**
+ * -------------------------
+ * Helper
+ * -------------------------
+ */
+
+async function sendPushNotification(userId, notification) {
+  try {
+    const user = await User.findById(userId);
+    if (user?.notificationToken) {
+      // Hook up with Firebase, OneSignal, etc.
+      console.log("Would send push notification to:", userId, notification);
+    }
+  } catch (error) {
+    console.error("Error sending push notification:", error);
   }
 }
 
@@ -316,5 +366,5 @@ module.exports = {
   notifySeatAvailable,
   sendBookingReminders,
   broadcastEmergency,
-  broadcastBookingStats
+  broadcastBookingStats,
 };

@@ -1,4 +1,3 @@
-// src/components/auth/LoginForm.jsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -9,45 +8,41 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import LoadingSpinner from "../common/LoadingSpinner";
+import toast from "react-hot-toast";
 
 const LoginForm = () => {
   const { login, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const [formData, setFormData] = useState({ 
-    email: "", 
-    password: "" 
-  });
+
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(localStorage.getItem("rememberMe") === "true");
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const redirectTo = location.state?.from?.pathname || "/dashboard";
-      navigate(redirectTo, { replace: true });
+      // ✅ LOGIC CHANGED: Ab yeh seedha '/dashboard' par redirect karega.
+      navigate("/dashboard", { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, navigate]);
+
+  // Show success message from registration
+  useEffect(() => {
+    if (location.state?.message) {
+      toast.success(location.state.message);
+    }
+  }, [location.state]);
 
   const validateForm = () => {
     const newErrors = {};
+    if (!formData.email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Enter a valid email";
 
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
-    }
-
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
+    if (!formData.password) newErrors.password = "Password is required";
+    else if (formData.password.length < 6) newErrors.password = "Password must be 6+ characters";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -55,59 +50,48 @@ const LoginForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
 
     setIsLoading(true);
     setErrors({});
-
     try {
+      console.log("📩 Attempting login with:", formData);
       const result = await login(formData);
-      
-      if (result.success) {
-        // Remember me functionality
-        if (rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-        } else {
-          localStorage.removeItem("rememberMe");
-        }
+      console.log("✅ Login response:", result);
 
-        // Redirect to intended page or dashboard
-        const redirectTo = location.state?.from?.pathname || "/dashboard";
-        navigate(redirectTo, { replace: true });
+      if (result.success) {
+        if (rememberMe) localStorage.setItem("rememberMe", "true");
+        else localStorage.removeItem("rememberMe");
+
+        // ✅ LOGIC CHANGED: Login ke baad seedha '/dashboard' par redirect karega.
+        console.log("➡️ Redirecting directly to: /dashboard");
+        navigate("/dashboard", { replace: true });
+        toast.success("Login successful!");
       } else {
-        setErrors({ submit: result.error });
+        console.error("❌ Login failed with error:", result.error);
+        setErrors({ submit: result.error || "Login failed" });
       }
-    } catch (error) {
-      setErrors({ submit: error.message || "Login failed. Please try again." });
+    } catch (err) {
+      console.error("🔥 Login request error:", err);
+      setErrors({ submit: err.message || "Login failed. Try again." });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading while checking authentication status
-  if (authLoading) {
+  if (authLoading)
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="Checking authentication..." />
       </div>
     );
-  }
-
-  // Don't show form if already authenticated (will redirect)
-  if (isAuthenticated) {
-    return null;
-  }
+  if (isAuthenticated) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8">
@@ -135,14 +119,14 @@ const LoginForm = () => {
               Sign in to your EasyLuxury account
             </CardDescription>
           </CardHeader>
-
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                  <Mail className="w-4 h-4 mr-2" />
-                  Email Address
+                <Label
+                  htmlFor="email"
+                  className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  <Mail className="w-4 h-4 mr-2" /> Email
                 </Label>
                 <Input
                   id="email"
@@ -151,25 +135,18 @@ const LoginForm = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
-                  className={`w-full ${errors.email ? "border-red-500" : ""}`}
+                  className={`${errors.email ? "border-red-500" : ""}`}
                   disabled={isLoading}
                 />
-                {errors.email && (
-                  <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-red-500 text-xs"
-                  >
-                    {errors.email}
-                  </motion.p>
-                )}
+                {errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
               </div>
 
-              {/* Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                  <Lock className="w-4 h-4 mr-2" />
-                  Password
+                <Label
+                  htmlFor="password"
+                  className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  <Lock className="w-4 h-4 mr-2" /> Password
                 </Label>
                 <div className="relative">
                   <Input
@@ -179,70 +156,46 @@ const LoginForm = () => {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter your password"
-                    className={`w-full pr-10 ${errors.password ? "border-red-500" : ""}`}
+                    className={`${errors.password ? "border-red-500" : ""} pr-10`}
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
                     disabled={isLoading}
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {errors.password && (
-                  <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-red-500 text-xs"
-                  >
-                    {errors.password}
-                  </motion.p>
-                )}
+                {errors.password && <p className="text-red-500 text-xs">{errors.password}</p>}
               </div>
 
-              {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between">
                 <label className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-blue-600"
                     disabled={isLoading}
                   />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    Remember me
-                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
                 </label>
-                
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
                 >
                   Forgot password?
                 </Link>
               </div>
 
-              {/* Submit Error */}
               {errors.submit && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md"
-                >
-                  <p className="text-red-700 dark:text-red-300 text-sm">
-                    {errors.submit}
-                  </p>
-                </motion.div>
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <p className="text-red-700 dark:text-red-300 text-sm">{errors.submit}</p>
+                </div>
               )}
 
-              {/* Submit Button */}
               <Button
                 type="submit"
                 disabled={isLoading}
@@ -251,8 +204,7 @@ const LoginForm = () => {
               >
                 {isLoading ? (
                   <>
-                    <LoadingSpinner size="small" variant="light" className="mr-2" />
-                    Signing in...
+                    <LoadingSpinner size="small" variant="light" className="mr-2" /> Signing in...
                   </>
                 ) : (
                   "Sign In"
@@ -260,13 +212,12 @@ const LoginForm = () => {
               </Button>
             </form>
 
-            {/* Sign Up Link */}
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Don't have an account?{" "}
                 <Link
                   to="/register"
-                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
                 >
                   Sign up
                 </Link>

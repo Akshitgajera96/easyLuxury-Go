@@ -1,5 +1,6 @@
-const express = require('express');
-const { body, param, query } = require('express-validator');
+// backend/routes/captainRoutes.js
+const express = require("express");
+const { body, param, query } = require("express-validator");
 const {
   registerCaptain,
   getAllCaptains,
@@ -10,148 +11,132 @@ const {
   updateCaptainAvailability,
   getCaptainStats,
   assignBusToCaptain,
-  removeBusFromCaptain
-} = require('../controllers/captainController');
-const { protect, admin } = require('../middlewares/authMiddleware');
+  removeBusFromCaptain,
+} = require("../controllers/captainController");
+
+const { protect, requireRole, validate } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Validation rules
+/**
+ * -------------------------
+ * Validation middlewares
+ * -------------------------
+ */
+
+// ✅ Register a new captain
 const registerCaptainValidation = [
-  body('name')
-    .notEmpty()
-    .withMessage('Name is required')
+  body("fullName")
     .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Name must be between 2 and 100 characters'),
-  
-  body('email')
-    .isEmail()
-    .withMessage('Please provide a valid email')
+    .notEmpty().withMessage("Full name is required")
+    .isLength({ min: 3, max: 100 }).withMessage("Full name must be between 3 and 100 characters"),
+  body("email")
+    .trim()
+    .isEmail().withMessage("Valid email is required")
     .normalizeEmail()
-    .isLength({ max: 255 })
-    .withMessage('Email cannot exceed 255 characters'),
-  
-  body('phone')
-    .matches(/^\+?[1-9]\d{1,14}$/)
-    .withMessage('Please provide a valid phone number'),
-  
-  body('licenseNumber')
-    .notEmpty()
-    .withMessage('License number is required')
+    .isLength({ max: 255 }).withMessage("Email cannot exceed 255 characters"),
+  body("phone")
+    .matches(/^\+?[1-9]\d{1,14}$/).withMessage("Valid phone number is required (E.164 format)"),
+  body("licenseNumber")
     .trim()
-    .isLength({ max: 50 })
-    .withMessage('License number cannot exceed 50 characters'),
-  
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
+    .notEmpty().withMessage("License number is required")
+    .isLength({ max: 50 }).withMessage("License number cannot exceed 50 characters"),
+  body("password")
+    .isLength({ min: 8 }).withMessage("Password must be at least 8 characters")
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
+    .withMessage("Password must include uppercase, lowercase, number, and special character"),
+  body("dateOfBirth")
+    .notEmpty().withMessage("Date of birth is required")
+    .isISO8601().toDate().withMessage("Date of birth must be a valid date"),
+  validate,
 ];
 
+// ✅ Update captain
 const updateCaptainValidation = [
-  body('name')
+  body("fullName")
     .optional()
     .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Name must be between 2 and 100 characters'),
-  
-  body('phone')
+    .isLength({ min: 3, max: 100 }).withMessage("Full name must be between 3 and 100 characters"),
+  body("phone")
     .optional()
-    .matches(/^\+?[1-9]\d{1,14}$/)
-    .withMessage('Please provide a valid phone number'),
-  
-  body('licenseNumber')
+    .matches(/^\+?[1-9]\d{1,14}$/).withMessage("Valid phone number is required (E.164 format)"),
+  body("licenseNumber")
     .optional()
     .trim()
-    .isLength({ max: 50 })
-    .withMessage('License number cannot exceed 50 characters')
+    .isLength({ max: 50 }).withMessage("License number cannot exceed 50 characters"),
+  body("status")
+    .optional()
+    .isIn(["PENDING", "APPROVED", "REJECTED", "SUSPENDED"])
+    .withMessage("Invalid status value"),
+  body("availability")
+    .optional()
+    .isIn(["AVAILABLE", "ON_TRIP", "OFFLINE"])
+    .withMessage("Invalid availability value"),
+  validate,
 ];
 
+// ✅ Captain ID param validation
 const captainIdParamValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Valid captain ID is required')
+  param("id").isMongoId().withMessage("Valid captain ID is required"),
+  validate,
 ];
 
+// ✅ Query validation
 const queryValidation = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  
-  query('search')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Search query cannot exceed 100 characters'),
-  
-  query('isAvailable')
-    .optional()
-    .isBoolean()
-    .withMessage('isAvailable must be a boolean')
+  query("page").optional().isInt({ min: 1 }).withMessage("Page must be a positive integer"),
+  query("limit").optional().isInt({ min: 1, max: 100 }).withMessage("Limit must be between 1 and 100"),
+  query("search").optional().trim().isLength({ max: 100 }).withMessage("Search cannot exceed 100 characters"),
+  query("isAvailable").optional().isBoolean().withMessage("isAvailable must be boolean"),
+  validate,
 ];
 
-// @route   POST /api/captains
-// @desc    Register a new captain
-// @access  Private (Admin)
-router.post('/', protect, admin, registerCaptainValidation, registerCaptain);
+/**
+ * -------------------------
+ * Routes
+ * -------------------------
+ */
 
-// @route   GET /api/captains
-// @desc    Get all captains with filtering and pagination
-// @access  Private (Admin)
-router.get('/', protect, admin, queryValidation, getAllCaptains);
+// 🔐 All captain routes are admin-protected
+router.use(protect, requireRole("admin"));
 
-// @route   GET /api/captains/stats
-// @desc    Get captain statistics
-// @access  Private (Admin)
-router.get('/stats', protect, admin, getCaptainStats);
+// ➕ Register a new captain
+router.post("/", registerCaptainValidation, registerCaptain);
 
-// @route   GET /api/captains/:id
-// @desc    Get a captain by ID
-// @access  Private (Admin)
-router.get('/:id', protect, admin, captainIdParamValidation, getCaptainById);
+// 📄 Get all captains
+router.get("/", queryValidation, getAllCaptains);
 
-// @route   GET /api/captains/:id/availability
-// @desc    Get captain availability status
-// @access  Private (Admin)
-router.get('/:id/availability', protect, admin, captainIdParamValidation, getCaptainAvailability);
+// 📊 Get captain stats
+router.get("/stats", getCaptainStats);
 
-// @route   PUT /api/captains/:id
-// @desc    Update a captain's profile
-// @access  Private (Admin)
-router.put('/:id', protect, admin, captainIdParamValidation, updateCaptainValidation, updateCaptain);
+// 🔍 Get captain by ID
+router.get("/:id", captainIdParamValidation, getCaptainById);
 
-// @route   PATCH /api/captains/:id/availability
-// @desc    Update captain availability status
-// @access  Private (Admin)
-router.patch('/:id/availability', protect, admin, captainIdParamValidation, [
-  body('isAvailable')
-    .isBoolean()
-    .withMessage('isAvailable must be a boolean')
-], updateCaptainAvailability);
+// 👀 Get captain availability
+router.get("/:id/availability", captainIdParamValidation, getCaptainAvailability);
 
-// @route   PATCH /api/captains/:id/assign-bus
-// @desc    Assign a bus to captain
-// @access  Private (Admin)
-router.patch('/:id/assign-bus', protect, admin, captainIdParamValidation, [
-  body('busId')
-    .isMongoId()
-    .withMessage('Valid bus ID is required')
-], assignBusToCaptain);
+// ✏️ Update captain profile
+router.put("/:id", captainIdParamValidation, updateCaptainValidation, updateCaptain);
 
-// @route   PATCH /api/captains/:id/remove-bus
-// @desc    Remove bus assignment from captain
-// @access  Private (Admin)
-router.patch('/:id/remove-bus', protect, admin, captainIdParamValidation, removeBusFromCaptain);
+// 🔄 Update captain availability
+router.patch(
+  "/:id/availability",
+  captainIdParamValidation,
+  [body("availability").isIn(["AVAILABLE", "ON_TRIP", "OFFLINE"]).withMessage("Invalid availability value"), validate],
+  updateCaptainAvailability
+);
 
-// @route   DELETE /api/captains/:id
-// @desc    Delete a captain
-// @access  Private (Admin)
-router.delete('/:id', protect, admin, captainIdParamValidation, deleteCaptain);
+// 🚌 Assign bus to captain
+router.patch(
+  "/:id/assign-bus",
+  captainIdParamValidation,
+  [body("busId").isMongoId().withMessage("Valid bus ID is required"), validate],
+  assignBusToCaptain
+);
+
+// ❌ Remove bus from captain
+router.patch("/:id/remove-bus", captainIdParamValidation, removeBusFromCaptain);
+
+// 🗑️ Delete captain
+router.delete("/:id", captainIdParamValidation, deleteCaptain);
 
 module.exports = router;

@@ -1,4 +1,5 @@
-// src/socket/socket.js
+// src/socket/socket.js (સંપૂર્ણ સુધારેલો કોડ)
+
 import { io } from "socket.io-client";
 import { getStoredToken, refreshToken } from "../services/authService";
 
@@ -109,8 +110,8 @@ export const connectSocket = async () => {
 export const disconnectSocket = () => {
   if (socket) {
     socket.disconnect();
-    socket = null;
     isConnected = false;
+    // socket = null; // We will nullify it in cleanupSocket to avoid race conditions
   }
 };
 
@@ -153,18 +154,18 @@ export const emitBookingCancel = (bookingId, reason) => {
 };
 
 export const onBookingConfirmed = (callback) => {
-  socket.on("booking:confirmed", callback);
-  return () => socket.off("booking:confirmed", callback);
+  if (socket) socket.on("booking:confirmed", callback);
+  return () => { if (socket) socket.off("booking:confirmed", callback); };
 };
 
 export const onBookingUpdated = (callback) => {
-  socket.on("booking:updated", callback);
-  return () => socket.off("booking:updated", callback);
+  if (socket) socket.on("booking:updated", callback);
+  return () => { if (socket) socket.off("booking:updated", callback); };
 };
 
 export const onBookingCancelled = (callback) => {
-  socket.on("booking:cancelled", callback);
-  return () => socket.off("booking:cancelled", callback);
+  if (socket) socket.on("booking:cancelled", callback);
+  return () => { if (socket) socket.off("booking:cancelled", callback); };
 };
 
 // 💺 Seat Events
@@ -187,18 +188,18 @@ export const emitSeatRelease = (busId, seatNumbers) => {
 };
 
 export const onSeatUpdate = (callback) => {
-  socket.on("seats:updated", callback);
-  return () => socket.off("seats:updated", callback);
+  if (socket) socket.on("seats:updated", callback);
+  return () => { if (socket) socket.off("seats:updated", callback); };
 };
 
 export const onSeatLocked = (callback) => {
-  socket.on("seats:locked", callback);
-  return () => socket.off("seats:locked", callback);
+  if (socket) socket.on("seats:locked", callback);
+  return () => { if (socket) socket.off("seats:locked", callback); };
 };
 
 export const onSeatReleased = (callback) => {
-  socket.on("seats:released", callback);
-  return () => socket.off("seats:released", callback);
+  if (socket) socket.on("seats:released", callback);
+  return () => { if (socket) socket.off("seats:released", callback); };
 };
 
 // 💰 Refund Events
@@ -215,13 +216,13 @@ export const emitRefundStatusUpdate = (refundId, status, notes) => {
 };
 
 export const onRefundStatus = (callback) => {
-  socket.on("refund:status", callback);
-  return () => socket.off("refund:status", callback);
+  if (socket) socket.on("refund:status", callback);
+  return () => { if (socket) socket.off("refund:status", callback); };
 };
 
 export const onRefundCreated = (callback) => {
-  socket.on("refund:created", callback);
-  return () => socket.off("refund:created", callback);
+  if (socket) socket.on("refund:created", callback);
+  return () => { if (socket) socket.off("refund:created", callback); };
 };
 
 // 💳 Wallet Events
@@ -232,13 +233,13 @@ export const emitWalletTransaction = (amount, type, description) => {
 };
 
 export const onWalletUpdate = (callback) => {
-  socket.on("wallet:updated", callback);
-  return () => socket.off("wallet:updated", callback);
+  if (socket) socket.on("wallet:updated", callback);
+  return () => { if (socket) socket.off("wallet:updated", callback); };
 };
 
 export const onWalletTransaction = (callback) => {
-  socket.on("wallet:transaction", callback);
-  return () => socket.off("wallet:transaction", callback);
+  if (socket) socket.on("wallet:transaction", callback);
+  return () => { if (socket) socket.off("wallet:transaction", callback); };
 };
 
 // 🚌 Bus Events
@@ -249,13 +250,13 @@ export const emitBusStatusUpdate = (busId, status, reason) => {
 };
 
 export const onBusStatusUpdate = (callback) => {
-  socket.on("bus:status:updated", callback);
-  return () => socket.off("bus:status:updated", callback);
+  if (socket) socket.on("bus:status:updated", callback);
+  return () => { if (socket) socket.off("bus:status:updated", callback); };
 };
 
 export const onBusLocationUpdate = (callback) => {
-  socket.on("bus:location:updated", callback);
-  return () => socket.off("bus:location:updated", callback);
+  if (socket) socket.on("bus:location:updated", callback);
+  return () => { if (socket) socket.off("bus:location:updated", callback); };
 };
 
 // 👤 User Events
@@ -266,8 +267,8 @@ export const emitUserPresence = (status) => {
 };
 
 export const onUserNotification = (callback) => {
-  socket.on("user:notification", callback);
-  return () => socket.off("user:notification", callback);
+  if (socket) socket.on("user:notification", callback);
+  return () => { if (socket) socket.off("user:notification", callback); };
 };
 
 // 🔄 Generic Event Helpers
@@ -278,8 +279,8 @@ export const emitEvent = (eventName, data) => {
 };
 
 export const listenToEvent = (eventName, callback) => {
-  socket.on(eventName, callback);
-  return () => socket.off(eventName, callback);
+  if (socket) socket.on(eventName, callback);
+  return () => { if (socket) socket.off(eventName, callback); };
 };
 
 export const removeAllListeners = (eventName) => {
@@ -295,8 +296,10 @@ export const getSocketId = () => {
 // Cleanup function
 export const cleanupSocket = () => {
   if (socket) {
+    console.log("Cleaning up socket instance and listeners.");
     socket.removeAllListeners();
     disconnectSocket();
+    socket = null; // Ensure it's null after cleanup
   }
   connectionListeners = [];
 };
