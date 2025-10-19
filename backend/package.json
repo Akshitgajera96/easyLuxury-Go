@@ -9,7 +9,8 @@
     "seed": "node scripts/seedDatabase.js",
     "test-mongo": "node scripts/testMongoConnection.js",
     "test-auth": "node tests/testAuthSystem.js",
-    "check-env": "node tests/checkEnv.js"
+    "check-env": "node tests/checkEnv.js",
+    "verify-prod": "node scripts/verifyEnvForProduction.js"
   },
   "author": "Akshit",
   "license": "ISC",
