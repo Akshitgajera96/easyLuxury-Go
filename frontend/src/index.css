@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hide horizontal scrollbar */
+body {
+  overflow-x: hidden;
+}
+
+/* CSS Variables */
+:root {
+  /* Base colors - Modern Luxury Palette */
+  --primary-bg: #ffffff;
+  --secondary-bg: #F9FAFB;
+  --text-color: #1E293B; /* Dark slate for text */
+  
+  /* Accent colors - Soft Blues */
+  --accent: #60A5FA; /* Soft blue */
+  --accent-light: #DBEAFE; /* Very light blue */
+  --accent-dark: #3B82F6; /* Rich blue */
+  
+  /* Semantic colors - Proper color coding */
+  --success: #10B981;
+  --success-light: #D1FAE5;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --error: #EF4444;
+  --error-light: #FEE2E2;
+  --info: #3B82F6;
+  --info-light: #DBEAFE;
+  
+  /* Gradients - Modern and elegant */
+  --gradient-primary: linear-gradient(135deg, #93C5FD 0%, #60A5FA 100%);
+  --gradient-sky: linear-gradient(135deg, #DBEAFE 0%, #93C5FD 100%);
+  --gradient-success: linear-gradient(135deg, #D1FAE5 0%, #10B981 100%);
+  --gradient-hero: linear-gradient(135deg, #FFFFFF 0%, #DBEAFE 50%, #93C5FD 100%);
+  --gradient-dark: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+  
+  /* Glass morphism */
+  --glass-bg: rgba(96, 165, 250, 0.05);
+  --glass-border: rgba(96, 165, 250, 0.1);
+}
+
+/* Custom Scrollbar Styles for Searchable Dropdowns */
+@layer components {
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-dark);
+  }
+
+  /* Firefox */
+  .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) #f1f1f1;
+  }
+
+  /* Sidebar scrollbar - dark theme */
+  .bg-black40 .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .bg-black40 .overflow-y-auto::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 3px;
+  }
+
+  .bg-black40 .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+  }
+
+  .bg-black40 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-dark);
+  }
+
+  .bg-black40 .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--secondary-bg);
+  }
+
+  /* Sidebar scrollbar - white theme with sky blue accent */
+  aside.bg-white nav::-webkit-scrollbar,
+  aside.bg-white .overflow-y-auto::-webkit-scrollbar,
+  .bg-teal-600 nav::-webkit-scrollbar,
+  .bg-teal-600 .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  aside.bg-white nav::-webkit-scrollbar-track,
+  aside.bg-white .overflow-y-auto::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 3px;
+  }
+
+  .bg-teal-600 nav::-webkit-scrollbar-track,
+  .bg-teal-600 .overflow-y-auto::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  aside.bg-white nav::-webkit-scrollbar-thumb,
+  aside.bg-white .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+  }
+
+  .bg-teal-600 nav::-webkit-scrollbar-thumb,
+  .bg-teal-600 .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+  }
+
+  .bg-teal-600 nav::-webkit-scrollbar-thumb:hover,
+  .bg-teal-600 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-dark);
+  }
+
+  aside.bg-white nav,
+  aside.bg-white .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) #f3f4f6;
+  }
+
+  .bg-teal-600 nav,
+  .bg-teal-600 .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) rgba(255, 255, 255, 0.1);
+  }
+
+  /* Ensure sidebar is always fixed and unaffected by page content */
+  aside[class*="fixed"] {
+    position: fixed !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    top: 0 !important;
+    bottom: 0 !important;
+  }
+}

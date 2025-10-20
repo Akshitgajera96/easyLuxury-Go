@@ -1,0 +1,75 @@
+/* Enhanced Text Visibility for 3-Color Palette: Pale Azure, Uranian Blue, White */
+
+/* Ensure white, readable text on accent backgrounds */
+.bg-accent,
+.bg-gradient-to-r.from-accent,
+[class*="bg-accent"] {
+  color: #ffffff !important; /* White for better contrast */
+}
+
+/* Buttons with accent background - ensure white text */
+button.bg-accent,
+button[class*="bg-accent"],
+a.bg-accent,
+a[class*="bg-accent"] {
+  color: #ffffff !important; /* White */
+  font-weight: 600 !important; /* Slightly bolder */
+}
+
+/* Text on gradient backgrounds */
+.bg-gradient-to-r.from-accent.to-accent-dark,
+.bg-gradient-primary {
+  color: #ffffff !important;
+}
+
+/* Ensure links and interactive text are visible */
+.text-accent {
+  color: #90D7FF !important; /* Pale azure for better visibility */
+  font-weight: 500;
+}
+
+/* Hover states for links */
+.hover\:text-accent:hover {
+  color: #B1E5FF !important;
+}
+
+/* Badge text enhancement */
+[class*="bg-accent"][class*="badge"],
+[class*="bg-accent"][class*="rounded-full"],
+.badge.bg-accent {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Active navigation items */
+[class*="bg-accent"][class*="shadow"] {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Search button and primary CTAs */
+button[type="submit"].bg-accent,
+button.primary.bg-accent {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(144, 215, 255, 0.3);
+}
+
+/* Ensure tab buttons are readable */
+.tab.bg-accent,
+button[role="tab"].bg-accent {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Icon visibility on accent backgrounds */
+.bg-accent svg,
+.bg-accent [class*="icon"] {
+  color: #ffffff !important;
+}
+
+/* Keep white text on accent backgrounds */
+.bg-accent .text-white,
+.bg-accent-light .text-white {
+  color: #ffffff !important;
+}
