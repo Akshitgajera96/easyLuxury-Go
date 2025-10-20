@@ -1,7 +1,7 @@
 // FILE: backend/server.js
 /**
  * Main server entry point for easyLuxury Go API
- * Environment dependencies: PORT, MONGODB_URI, JWT_SECRET, NODE_ENV
+ * Environment dependencies: PORT, MONGO_URI, JWT_SECRET, NODE_ENV
  */
 
 const express = require('express');

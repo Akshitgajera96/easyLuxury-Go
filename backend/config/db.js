@@ -1,7 +1,7 @@
 // FILE: backend/config/db.js
 /**
  * MongoDB database configuration and connection setup
- * Environment dependencies: MONGODB_URI
+ * Environment dependencies: MONGO_URI
  */
 
 const mongoose = require('mongoose');
@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/easyluxury'
+      process.env.MONGO_URI || 'mongodb://localhost:27017/easyluxury'
     );
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
