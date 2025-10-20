@@ -43,24 +43,15 @@ const LoginPage = () => {
   const userTypes = {
     customer: {
       title: 'Customer Login',
-      description: 'Book buses and manage your travel',
-      demoCredentials: [
-        { email: 'customer@easyluxury.com', password: 'password' }
-      ]
+      description: 'Book buses and manage your travel'
     },
     admin: {
       title: 'Admin Login', 
-      description: 'Manage buses, routes, and operations',
-      demoCredentials: [
-        { email: 'admin@easyLuxuryGo.com', password: 'Admin@12345' }
-      ]
+      description: 'Manage buses, routes, and operations'
     },
     staff: {
       title: 'Staff Login',
       description: 'Driver and conductor access',
-      demoCredentials: [
-        { email: 'staff@example.com', password: 'Staff@123' }
-      ],
       note: 'Staff accounts must be created and approved by admin first'
     }
   }
@@ -76,17 +67,12 @@ const LoginPage = () => {
 
   const handleUserTypeClick = (type) => {
     setActiveTab(type)
-    // Auto-fill demo credentials when switching tabs
-    const demoCredential = userTypes[type].demoCredentials[0]
+    // Clear form when switching tabs
     setFormData({
-      email: demoCredential.email,
-      password: demoCredential.password
+      email: '',
+      password: ''
     })
     setError('')
-  }
-
-  const handleDemoLogin = (email, password) => {
-    setFormData({ email, password })
   }
 
   const handleSubmit = async (e) => {
@@ -276,30 +262,15 @@ const LoginPage = () => {
             />
           </div>
 
-          {/* Demo Credentials Quick Access */}
-          <div className="bg-accent/10 rounded-lg p-4 border border-accent">
-            <h4 className="font-semibold text-black40 mb-2 text-sm">
-              Quick Login (Click to auto-fill)
-            </h4>
-            <div className="space-y-2">
-              {currentUserType.demoCredentials.map((cred, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleDemoLogin(cred.email, cred.password)}
-                  className="w-full text-left p-2 bg-white rounded border border-accent hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300/20 transition-colors text-sm text-black40 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div className="font-medium">{cred.email}</div>
-                  <div className="text-black40">Password: {cred.password}</div>
-                </button>
-              ))}
-            </div>
-            {currentUserType.note && (
-              <div className="mt-3 text-xs text-accent-dark bg-accent-light p-2 rounded border border-accent">
-                ⚠️ {currentUserType.note}
+          {/* Staff Note */}
+          {activeTab === 'staff' && currentUserType.note && (
+            <div className="bg-accent/10 rounded-lg p-3 border border-accent">
+              <div className="flex items-start gap-2">
+                <span className="text-accent text-sm mt-0.5">ℹ️</span>
+                <p className="text-xs text-gray-700">{currentUserType.note}</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Remember Me & Forgot Password */}
           <div className="flex items-center justify-between">
