@@ -7,7 +7,6 @@ import AppRouter from './routes/AppRouter';
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import './app.css';
-import './App.css';
 
 function App() {
   return (
