@@ -263,10 +263,10 @@ const ReviewsPage = () => {
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {review.trip.route.from} ? {review.trip.route.to}
+                            {review.trip.route.from} → {review.trip.route.to}
                           </h3>
                           <p className="text-sm text-gray-600">
-                            {review.trip.bus.operator} � {formatDateTime(review.trip.departureDateTime)}
+                            {review.trip.bus.operator} � {formatDateTime(review.trip.departureDateTime)}
                           </p>
                         </div>
                         <div className="text-right">
@@ -311,7 +311,7 @@ const ReviewsPage = () => {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="text-6xl mb-4">?</div>
+                  <div className="text-6xl mb-4">₹</div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No reviews yet</h3>
                   <p className="text-gray-600">Complete a trip to write your first review!</p>
                 </div>
@@ -335,13 +335,13 @@ const ReviewsPage = () => {
                     >
                       <div>
                         <h4 className="font-semibold text-gray-900">
-                          {booking.trip.route.from} ? {booking.trip.route.to}
+                          {booking.trip.route.from} → {booking.trip.route.to}
                         </h4>
                         <p className="text-sm text-gray-600">
-                          {booking.trip.bus.operator} � {formatDateTime(booking.trip.departureDateTime)}
+                          {booking.trip.bus.operator} � {formatDateTime(booking.trip.departureDateTime)}
                         </p>
                         <p className="text-sm text-gray-500">
-                          PNR: {booking.pnr} � Completed on {formatDateTime(booking.completedAt)}
+                          PNR: {booking.pnr} � Completed on {formatDateTime(booking.completedAt)}
                         </p>
                       </div>
                       <button
@@ -372,7 +372,7 @@ const ReviewsPage = () => {
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">?</span>
+                    <span className="text-green-600 text-sm">₹</span>
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">Be Specific</h4>
@@ -382,7 +382,7 @@ const ReviewsPage = () => {
 
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">?</span>
+                    <span className="text-green-600 text-sm">₹</span>
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">Be Honest</h4>
@@ -392,7 +392,7 @@ const ReviewsPage = () => {
 
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">?</span>
+                    <span className="text-green-600 text-sm">₹</span>
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">Rate Fairly</h4>
@@ -402,7 +402,7 @@ const ReviewsPage = () => {
 
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-green-600 text-sm">?</span>
+                    <span className="text-green-600 text-sm">₹</span>
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">Be Constructive</h4>
@@ -436,7 +436,7 @@ const ReviewsPage = () => {
           >
             <div className="p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">
-                Write Review for {selectedBooking.trip.route.from} ? {selectedBooking.trip.route.to}
+                Write Review for {selectedBooking.trip.route.from} → {selectedBooking.trip.route.to}
               </h3>
               
               <form onSubmit={handleSubmitReview} className="space-y-6">

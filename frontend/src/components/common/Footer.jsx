@@ -40,7 +40,7 @@ const Footer = () => {
   ]
 
   return (
-    <footer className="bg-gray-400 text-black">
+    <footer className="bg-gray-200 text-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand Section */}
@@ -105,7 +105,7 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-8 pt-8 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center">
+        <div className="mt-8 pt-8 border-t border-gray-300 flex flex-col md:flex-row justify-between items-center">
           <p className="text-black text-sm">
             © {currentYear} easyLuxury Go. All rights reserved.
           </p>

@@ -183,10 +183,10 @@ const AnalyticsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <AnalyticsCard
           title="Total Revenue"
-          value={`?${(analyticsData.overview.totalRevenue / 100000).toFixed(1)}L`}
+          value={`₹${(analyticsData.overview.totalRevenue / 100000).toFixed(1)}L`}
           change={analyticsData.trends.revenueGrowth}
           changeType="positive"
-          icon="??"
+          icon="💰"
           description="Total revenue generated"
         />
         
@@ -195,16 +195,16 @@ const AnalyticsPage = () => {
           value={analyticsData.overview.totalBookings}
           change={analyticsData.trends.bookingGrowth}
           changeType="positive"
-          icon="??"
+          icon="📊"
           description="Total bookings made"
         />
         
         <AnalyticsCard
           title="Average Fare"
-          value={`?${analyticsData.overview.averageFare}`}
+          value={`₹${analyticsData.overview.averageFare}`}
           change={5.2}
           changeType="positive"
-          icon="??"
+          icon="💵"
           description="Average booking value"
         />
         
@@ -213,7 +213,7 @@ const AnalyticsPage = () => {
           value={`${analyticsData.overview.occupancyRate}%`}
           change={3.1}
           changeType="positive"
-          icon="??"
+          icon="🚌"
           description="Average bus occupancy"
         />
       </div>
@@ -239,14 +239,14 @@ const AnalyticsPage = () => {
                     <p className="text-sm text-gray-600">{route.bookings} bookings</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-accent">?{route.revenue.toLocaleString()}</p>
+                    <p className="font-semibold text-accent">₹{route.revenue.toLocaleString()}</p>
                     <p className="text-sm text-gray-600">Revenue</p>
                   </div>
                 </div>
               ))
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-2xl mb-2">??</p>
+                <p className="text-2xl mb-2">📊</p>
                 <p>No routes data available</p>
               </div>
             )}
@@ -272,7 +272,7 @@ const AnalyticsPage = () => {
                   <p className="text-sm text-gray-600">{bus.trips} trips � {bus.occupancy}% occupancy</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-accent">?{Math.round(bus.revenue).toLocaleString()}</p>
+                  <p className="font-semibold text-accent">₹{Math.round(bus.revenue).toLocaleString()}</p>
                   <p className="text-sm text-gray-600">Revenue</p>
                 </div>
               </div>
@@ -304,7 +304,7 @@ const AnalyticsPage = () => {
                   </div>
                 </div>
                 <span className="text-sm font-semibold text-gray-900 w-16 text-right">
-                  ?{(day.revenue / 1000).toFixed(0)}K
+                  &#8377;{(day.revenue / 1000).toFixed(0)}K
                 </span>
               </div>
             ))}
@@ -421,10 +421,10 @@ const AnalyticsPage = () => {
           </div>
           <div className="flex space-x-3">
             <button className="bg-accent text-black40 px-6 py-3 rounded-lg font-semibold hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300 transition-colors">
-              ?? Export as PDF
+              📄 Export as PDF
             </button>
             <button className="bg-black40 text-white px-6 py-3 rounded-lg font-semibold hover:bg-black40/90 transition-colors">
-              ?? Export as Excel
+              📊 Export as Excel
             </button>
           </div>
         </div>

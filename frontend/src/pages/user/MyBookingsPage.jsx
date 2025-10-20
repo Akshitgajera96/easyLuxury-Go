@@ -410,7 +410,7 @@ Website: www.easyluxurygo.com
                   <div className="flex items-center space-x-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {booking.trip.route.from} ? {booking.trip.route.to}
+                        {booking.trip.route.from} → {booking.trip.route.to}
                       </h3>
                       <p className="text-sm text-gray-600">
                         PNR: {booking.pnr} � Booked on {formatDateTime(booking.createdAt)}
@@ -422,7 +422,7 @@ Website: www.easyluxurygo.com
                       {booking.bookingStatus.charAt(0).toUpperCase() + booking.bookingStatus.slice(1)}
                     </span>
                     <span className="text-lg font-bold text-accent">
-                      ?{booking.totalAmount}
+                      ₹{booking.totalAmount}
                     </span>
                   </div>
                 </div>
@@ -503,7 +503,7 @@ Website: www.easyluxurygo.com
                           </p>
                           {booking.refundAmount && (
                             <p className="text-sm text-red-600 mt-1">
-                              Refund: ?{booking.refundAmount} processed
+                              Refund: ₹{booking.refundAmount} processed
                             </p>
                           )}
                         </div>

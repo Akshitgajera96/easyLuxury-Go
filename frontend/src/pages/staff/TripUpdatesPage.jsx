@@ -12,7 +12,7 @@ const TripUpdatesPage = () => {
 
   const currentTrip = {
     id: 'TR003',
-    route: 'Mumbai ? Pune',
+    route: 'Mumbai → Pune',
     busNumber: 'MH-12-AB-1234',
     startTime: '10:00 AM',
     estimatedArrival: '04:00 PM',
@@ -188,7 +188,7 @@ const TripUpdatesPage = () => {
               <div key={index} className="flex gap-4 pb-4 border-b border-gray-200 last:border-0">
                 <div className="flex-shrink-0">
                   <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center">
-                    <span className="text-xl">??</span>
+                    <span className="text-xl">📍</span>
                   </div>
                 </div>
                 <div className="flex-1">

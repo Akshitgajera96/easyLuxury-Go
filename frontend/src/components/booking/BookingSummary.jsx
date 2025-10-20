@@ -95,18 +95,18 @@ const BookingSummary = ({
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Route:</span>
-              <span className="font-semibold">{route?.from} ? {route?.to}</span>
+              <span className="font-semibold">{route?.from} â†’ {route?.to}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Departure:</span>
               <span className="font-semibold">
-                {formatTime(departureDateTime)} • {formatDate(departureDateTime)}
+                {formatTime(departureDateTime)} Â· {formatDate(departureDateTime)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Arrival:</span>
               <span className="font-semibold">
-                {formatTime(arrivalDateTime)} • {formatDate(arrivalDateTime)}
+                {formatTime(arrivalDateTime)} Â· {formatDate(arrivalDateTime)}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -163,7 +163,7 @@ const BookingSummary = ({
                       {getSeatType(seat)}
                     </span>
                   </div>
-                  <span className="font-semibold text-accent">?{seatFare}</span>
+                  <span className="font-semibold text-accent">â‚¹{seatFare}</span>
                 </div>
               ))}
             </div>
@@ -194,7 +194,7 @@ const BookingSummary = ({
                     <div>
                       <p className="font-semibold text-gray-900">{passenger.name}</p>
                       <p className="text-sm text-gray-600">
-                        {passenger.age} years • {passenger.gender}
+                        {passenger.age} years Â· {passenger.gender}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Seat: {selectedSeats[index]?.replace('-', '')}
@@ -213,20 +213,20 @@ const BookingSummary = ({
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Base Fare ({selectedSeats.length} seats)</span>
-              <span>?{totals.baseFare}</span>
+              <span>â‚¹{totals.baseFare}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Taxes & GST (18%)</span>
-              <span>?{totals.taxes}</span>
+              <span>â‚¹{totals.taxes}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Convenience Fee</span>
-              <span>?{totals.convenienceFee}</span>
+              <span>â‚¹{totals.convenienceFee}</span>
             </div>
             <div className="border-t border-gray-200 pt-2">
               <div className="flex justify-between text-lg font-bold">
                 <span>Total Amount</span>
-                <span className="text-accent">?{totals.total}</span>
+                <span className="text-accent">â‚¹{totals.total}</span>
               </div>
             </div>
           </div>
@@ -236,10 +236,10 @@ const BookingSummary = ({
         <div className="bg-accent/10 border border-accent rounded-lg p-4">
           <h4 className="font-semibold text-black40 mb-2">Important Information</h4>
           <ul className="text-sm text-black40 space-y-1">
-            <li>• Please carry a valid ID proof during travel</li>
-            <li>• Arrive at boarding point 30 minutes before departure</li>
-            <li>• Cancellation charges apply as per policy</li>
-            <li>• Seats are subject to availability confirmation</li>
+            <li>â€¢ Please carry a valid ID proof during travel</li>
+            <li>â€¢ Arrive at boarding point 30 minutes before departure</li>
+            <li>â€¢ Cancellation charges apply as per policy</li>
+            <li>â€¢ Seats are subject to availability confirmation</li>
           </ul>
         </div>
       </div>

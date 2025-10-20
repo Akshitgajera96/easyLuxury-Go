@@ -224,13 +224,13 @@ const ManageBookingsPage = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      {booking.trip.route.from} ? {booking.trip.route.to}
+                      {booking.trip.route.from} â†’ {booking.trip.route.to}
                     </h3>
                     <p className="text-sm text-gray-600">
                       {formatDateTime(booking.trip.departureDateTime)}
                     </p>
                     <p className="text-sm text-gray-500">
-                      PNR: {booking.pnr} • Booked on: {formatDateTime(booking.createdAt)}
+                      PNR: {booking.pnr} ï¿½ Booked on: {formatDateTime(booking.createdAt)}
                     </p>
                   </div>
                   
@@ -262,8 +262,8 @@ const ManageBookingsPage = () => {
                   
                   <div>
                     <p className="font-medium text-gray-900">Booking Details</p>
-                    <p>{booking.seats.length} seat(s) • ?{booking.totalAmount}</p>
-                    <p className="text-gray-600">{booking.paymentMethod.toUpperCase()} • {booking.seats.join(', ')}</p>
+                    <p>{booking.seats.length} seat(s) ï¿½ â‚¹{booking.totalAmount}</p>
+                    <p className="text-gray-600">{booking.paymentMethod.toUpperCase()} ï¿½ {booking.seats.join(', ')}</p>
                   </div>
                 </div>
               </div>
@@ -315,7 +315,7 @@ const ManageBookingsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center py-12"
         >
-          <div className="text-6xl mb-4">??</div>
+          <div className="text-6xl mb-4">ðŸšŒ</div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No bookings found</h3>
           <p className="text-gray-600">No bookings match your current filters.</p>
         </motion.div>
@@ -351,7 +351,7 @@ const ManageBookingsPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Route</p>
-                      <p className="font-medium">{selectedBooking.trip.route.from} ? {selectedBooking.trip.route.to}</p>
+                      <p className="font-medium">{selectedBooking.trip.route.from} â†’ {selectedBooking.trip.route.to}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Departure</p>
@@ -400,7 +400,7 @@ const ManageBookingsPage = () => {
                         <div>
                           <p className="font-medium">{passenger.name}</p>
                           <p className="text-sm text-gray-600">
-                            {passenger.age} years • {passenger.gender} • Seat: {selectedBooking.seats[index]}
+                            {passenger.age} years ï¿½ {passenger.gender} ï¿½ Seat: {selectedBooking.seats[index]}
                           </p>
                         </div>
                       </div>
@@ -414,7 +414,7 @@ const ManageBookingsPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Total Amount</p>
-                      <p className="font-medium text-lg text-accent">?{selectedBooking.totalAmount}</p>
+                      <p className="font-medium text-lg text-accent">â‚¹{selectedBooking.totalAmount}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Payment Method</p>

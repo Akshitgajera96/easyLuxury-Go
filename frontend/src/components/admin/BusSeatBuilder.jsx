@@ -19,18 +19,17 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
     rightLowerSeats: busType === 'sleeper' ? 1 : 2  // Lower berth/seats on right per row
   })
 
+  // Helper to safely get valid totalSeats value
+  const getValidTotalSeats = () => {
+    return totalSeats !== undefined && !isNaN(totalSeats) ? totalSeats : 0
+  }
+
   const handleConfigChange = (field, value) => {
     const newConfig = { ...config, [field]: parseInt(value) || 0 }
     setConfig(newConfig)
   }
 
-  // Auto-generate seat layout when config changes and matches total seats
-  useEffect(() => {
-    const configuredTotal = getTotalSeatsInLayout()
-    if (configuredTotal === totalSeats && configuredTotal > 0) {
-      generateSeats()
-    }
-  }, [config.rows, config.leftUpperSeats, config.leftLowerSeats, config.rightUpperSeats, config.rightLowerSeats])
+  // Manual seat layout generation - removed auto-generation for better control
 
   const generateSeats = () => {
     const leftUpper = []
@@ -43,7 +42,7 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
       // Left Upper seats
       for (let seat = 1; seat <= config.leftUpperSeats; seat++) {
         leftUpper.push({
-          seatNumber: `LU${row}`,
+          seatNumber: `LU${row}${config.leftUpperSeats > 1 ? `-${seat}` : ''}`,
           seatType: 'upper',
           position: { row, side: 'left', level: 'upper', seat }
         })
@@ -61,7 +60,7 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
       // Right Upper seats
       for (let seat = 1; seat <= config.rightUpperSeats; seat++) {
         rightUpper.push({
-          seatNumber: `RU${row}`,
+          seatNumber: `RU${row}${config.rightUpperSeats > 1 ? `-${seat}` : ''}`,
           seatType: 'upper',
           position: { row, side: 'right', level: 'upper', seat }
         })
@@ -88,7 +87,12 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
   }
 
   const getTotalSeatsInLayout = () => {
-    return config.rows * (config.leftUpperSeats + config.leftLowerSeats + config.rightUpperSeats + config.rightLowerSeats)
+    const rows = config.rows || 0
+    const leftUpper = config.leftUpperSeats || 0
+    const leftLower = config.leftLowerSeats || 0
+    const rightUpper = config.rightUpperSeats || 0
+    const rightLower = config.rightLowerSeats || 0
+    return rows * (leftUpper + leftLower + rightUpper + rightLower)
   }
 
   return (
@@ -97,7 +101,7 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
         <h3 className="font-semibold text-black40 mb-2">🏛️ Configure Bus Seat Structure (LEFT/RIGHT Layout)</h3>
         <p className="text-sm text-black40">
           Design a realistic bus layout with LEFT and RIGHT sections, each having UPPER and LOWER berths. 
-          Layout auto-generates when total matches! 🎯
+          Click "Generate Seat Layout" button when configuration matches total seats! 🎯
         </p>
         <div className="mt-2 text-xs text-black40 bg-white rounded p-2 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <strong>Example:</strong> For a 40-seat sleeper bus with 10 rows: <br/>
@@ -163,7 +167,7 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
 
             <div className="bg-accent/10 rounded p-3 text-sm">
               <span className="font-semibold text-black40">Left Side Total: </span>
-              <span className="text-black40">{config.rows * (config.leftUpperSeats + config.leftLowerSeats)}</span>
+              <span className="text-black40">{(config.rows || 0) * ((config.leftUpperSeats || 0) + (config.leftLowerSeats || 0))}</span>
             </div>
           </div>
         </div>
@@ -207,7 +211,7 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
 
             <div className="bg-sky-50 rounded p-3 text-sm">
               <span className="font-semibold text-sky-800">Right Side Total: </span>
-              <span className="text-sky-900">{config.rows * (config.rightUpperSeats + config.rightLowerSeats)}</span>
+              <span className="text-sky-900">{(config.rows || 0) * ((config.rightUpperSeats || 0) + (config.rightLowerSeats || 0))}</span>
             </div>
           </div>
         </div>
@@ -218,7 +222,7 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-accent text-sm mb-1">Expected Total</p>
-            <p className="text-3xl font-bold">{totalSeats}</p>
+            <p className="text-3xl font-bold">{getValidTotalSeats()}</p>
           </div>
           <div>
             <p className="text-accent text-sm mb-1">Configured Total</p>
@@ -226,24 +230,30 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
           </div>
           <div>
             <p className="text-accent text-sm mb-1">Status</p>
-            <p className={`text-2xl font-bold ${getTotalSeatsInLayout() === totalSeats ? 'text-green-400' : 'text-accent'}`}>
-              {getTotalSeatsInLayout() === totalSeats ? '✅ Match' : '⚠️ Mismatch'}
+            <p className={`text-2xl font-bold ${
+              getTotalSeatsInLayout() === getValidTotalSeats() ? 'text-green-400' : 'text-accent'
+            }`}>
+              {getTotalSeatsInLayout() === getValidTotalSeats() ? '✅ Match' : '⚠️ Mismatch'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Auto-Generate Status */}
+      {/* Generate Button */}
       <div className="flex justify-center">
-        {getTotalSeatsInLayout() === totalSeats && getTotalSeatsInLayout() > 0 ? (
-          <div className="bg-green-100 border-2 border-green-500 text-green-800 px-8 py-3 rounded-lg font-semibold flex items-center gap-2">
-            <span>✅</span>
-            <span>Seat Layout Auto-Generated!</span>
-          </div>
+        {getTotalSeatsInLayout() === getValidTotalSeats() && getTotalSeatsInLayout() > 0 ? (
+          <button
+            onClick={generateSeats}
+            type="button"
+            className="bg-gradient-to-r from-green-500 to-green-600 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3"
+          >
+            <span className="text-2xl">🎨</span>
+            <span>Generate Seat Layout</span>
+          </button>
         ) : (
           <div className="bg-accent/20 border-2 border-accent text-gray-900 px-8 py-3 rounded-lg font-semibold flex items-center gap-2">
-            <span>⚙️</span>
-            <span>Configure rows to match {totalSeats} total seats</span>
+            <span>⚠️</span>
+            <span>Configure rows to match {getValidTotalSeats()} total seats to enable generation</span>
           </div>
         )}
       </div>
@@ -391,9 +401,9 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
 
           <div className="mt-4 bg-accent/10 border border-accent rounded p-3">
             <p className="text-sm text-black40">
-              ✅ <strong>Success!</strong> This layout has been auto-generated with {config.rows} rows. 
-              Left side has {config.leftUpperSeats + config.leftLowerSeats} seats per row, 
-              right side has {config.rightUpperSeats + config.rightLowerSeats} seats per row.
+              ✅ <strong>Success!</strong> This layout has been auto-generated with {config.rows || 0} rows. 
+              Left side has {(config.leftUpperSeats || 0) + (config.leftLowerSeats || 0)} seats per row, 
+              right side has {(config.rightUpperSeats || 0) + (config.rightLowerSeats || 0)} seats per row.
             </p>
           </div>
         </motion.div>

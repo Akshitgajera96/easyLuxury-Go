@@ -73,3 +73,22 @@ button[role="tab"].bg-accent {
 .bg-accent-light .text-white {
   color: #ffffff !important;
 }
+
+/* Force sidebar text to be black for better readability */
+aside nav a,
+aside nav a span,
+aside h2,
+aside p,
+aside .text-sm,
+aside .text-xs,
+aside .text-lg,
+.sidebar-text {
+  color: #000000 !important;
+}
+
+/* Ensure sidebar menu items are always black */
+nav a[href*="/admin"],
+nav a[href*="/staff"],
+nav a[href*="/profile"] {
+  color: #000000 !important;
+}

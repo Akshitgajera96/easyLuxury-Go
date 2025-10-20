@@ -24,24 +24,110 @@ const SeatLayout = ({
 
   // Check if bus layout uses new structure (left/right) or old structure (lowerDeck/upperDeck)
   const hasNewLayout = busLayout && busLayout.left && busLayout.right
+  const hasOldLayout = busLayout && (busLayout.lowerDeck || busLayout.upperDeck)
   const totalRows = hasNewLayout ? busLayout.totalRows : (busLayout?.lowerDeck?.rows || 10)
   
-  // Get all seats from the new layout structure
+  // Convert old layout format to new format
+  const convertOldLayoutToNew = () => {
+    if (!hasOldLayout) return null
+    
+    const leftSeats = []
+    const rightSeats = []
+    
+    // Process lowerDeck seats (these start with 'L' for lower)
+    if (busLayout.lowerDeck && busLayout.lowerDeck.seats) {
+      busLayout.lowerDeck.seats.forEach(seat => {
+        const seatNum = seat.seatNumber
+        const row = seat.position?.row || 1
+        const col = seat.position?.column || 1
+        
+        // In sleeper buses: column 1-2 are RIGHT side, column 3 is LEFT side
+        // Admin creates: Right side 2 seats, Left side 1 seat
+        // Seat numbers like "L1-1", "L1-2" (right), "L1-3" (left)
+        const isLeft = col === 3
+        
+        const newSeat = {
+          seatNumber: seatNum,
+          seatType: 'lower',
+          position: {
+            row: row,
+            side: isLeft ? 'left' : 'right',
+            level: 'lower',
+            seat: isLeft ? 1 : col
+          }
+        }
+        
+        if (isLeft) {
+          leftSeats.push(newSeat)
+        } else {
+          rightSeats.push(newSeat)
+        }
+      })
+    }
+    
+    // Process upperDeck seats (these start with 'U' for upper)
+    if (busLayout.upperDeck && busLayout.upperDeck.seats) {
+      busLayout.upperDeck.seats.forEach(seat => {
+        const seatNum = seat.seatNumber
+        const row = seat.position?.row || 1
+        const col = seat.position?.column || 1
+        
+        // In sleeper buses: column 1-2 are RIGHT side, column 3 is LEFT side
+        // Admin creates: Right side 2 seats, Left side 1 seat
+        // Seat numbers like "U1-1", "U1-2" (right), "U1-3" (left)
+        const isLeft = col === 3
+        
+        const newSeat = {
+          seatNumber: seatNum,
+          seatType: 'upper',
+          position: {
+            row: row,
+            side: isLeft ? 'left' : 'right',
+            level: 'upper',
+            seat: isLeft ? 1 : col
+          }
+        }
+        
+        if (isLeft) {
+          leftSeats.push(newSeat)
+        } else {
+          rightSeats.push(newSeat)
+        }
+      })
+    }
+    
+    return {
+      left: {
+        upper: leftSeats.filter(s => s.seatType === 'upper'),
+        lower: leftSeats.filter(s => s.seatType === 'lower')
+      },
+      right: {
+        upper: rightSeats.filter(s => s.seatType === 'upper'),
+        lower: rightSeats.filter(s => s.seatType === 'lower')
+      },
+      totalRows: busLayout.lowerDeck?.rows || busLayout.upperDeck?.rows || 10
+    }
+  }
+  
+  // Get effective layout (convert old to new if needed)
+  const effectiveLayout = hasNewLayout ? busLayout : (hasOldLayout ? convertOldLayoutToNew() : null)
+  
+  // Get all seats from the layout structure
   const getAllSeatsFromLayout = () => {
-    if (!hasNewLayout) return []
+    if (!effectiveLayout) return []
     
     const allSeats = []
-    if (busLayout.left && busLayout.left.upper && Array.isArray(busLayout.left.upper)) {
-      allSeats.push(...busLayout.left.upper)
+    if (effectiveLayout.left && effectiveLayout.left.upper && Array.isArray(effectiveLayout.left.upper)) {
+      allSeats.push(...effectiveLayout.left.upper)
     }
-    if (busLayout.left && busLayout.left.lower && Array.isArray(busLayout.left.lower)) {
-      allSeats.push(...busLayout.left.lower)
+    if (effectiveLayout.left && effectiveLayout.left.lower && Array.isArray(effectiveLayout.left.lower)) {
+      allSeats.push(...effectiveLayout.left.lower)
     }
-    if (busLayout.right && busLayout.right.upper && Array.isArray(busLayout.right.upper)) {
-      allSeats.push(...busLayout.right.upper)
+    if (effectiveLayout.right && effectiveLayout.right.upper && Array.isArray(effectiveLayout.right.upper)) {
+      allSeats.push(...effectiveLayout.right.upper)
     }
-    if (busLayout.right && busLayout.right.lower && Array.isArray(busLayout.right.lower)) {
-      allSeats.push(...busLayout.right.lower)
+    if (effectiveLayout.right && effectiveLayout.right.lower && Array.isArray(effectiveLayout.right.lower)) {
+      allSeats.push(...effectiveLayout.right.lower)
     }
     
     return allSeats
@@ -154,9 +240,9 @@ const SeatLayout = ({
 
   // New rendering for LEFT/RIGHT layout structure
   const renderNewLayout = () => {
-    if (!hasNewLayout || !busLayout) return null
+    if (!effectiveLayout) return null
     
-    const { left, right, totalRows } = busLayout
+    const { left, right, totalRows } = effectiveLayout
     
     // Group seats by row
     const leftUpperByRow = {}
@@ -215,21 +301,30 @@ const SeatLayout = ({
             
             return (
               <div key={`left-row-${rowNum}`} className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
-                <div className="text-xs text-gray-500 font-semibold mb-2">Row {rowNum}</div>
+                <div className="text-xs text-gray-500 font-semibold mb-3">Row {rowNum}</div>
                 
-                <div className="flex gap-4">
+                {/* Check if row has both upper and lower seats */}
+                <div className="space-y-2">
+                  {/* Upper Deck Section - Show first if exists */}
                   {leftUpperByRow[rowNum] && leftUpperByRow[rowNum].length > 0 && (
-                    <div className="flex-1">
-                      <div className="text-[10px] text-gray-600 font-semibold mb-1">Upper</div>
+                    <div>
+                      <div className="text-[9px] text-purple-700 font-bold mb-1 flex items-center gap-1">
+                        <span>⬆ Upper Deck</span>
+                        <div className="flex-1 h-px bg-purple-300"></div>
+                      </div>
                       <div className="flex gap-2">
                         {leftUpperByRow[rowNum].map(seat => renderSeat(seat))}
                       </div>
                     </div>
                   )}
                   
+                  {/* Lower Deck Section - Show below if exists */}
                   {leftLowerByRow[rowNum] && leftLowerByRow[rowNum].length > 0 && (
-                    <div className="flex-1">
-                      <div className="text-[10px] text-gray-600 font-semibold mb-1">Lower</div>
+                    <div>
+                      <div className="text-[9px] text-blue-700 font-bold mb-1 flex items-center gap-1">
+                        <span>⬇ Lower Deck</span>
+                        <div className="flex-1 h-px bg-blue-300"></div>
+                      </div>
                       <div className="flex gap-2">
                         {leftLowerByRow[rowNum].map(seat => renderSeat(seat))}
                       </div>
@@ -259,26 +354,44 @@ const SeatLayout = ({
             
             return (
               <div key={`right-row-${rowNum}`} className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
-                <div className="text-xs text-gray-500 font-semibold mb-2">Row {rowNum}</div>
+                <div className="text-xs text-gray-500 font-semibold mb-3">Row {rowNum}</div>
                 
-                <div className="flex gap-4">
-                  {rightUpperByRow[rowNum] && rightUpperByRow[rowNum].length > 0 && (
-                    <div className="flex-1">
-                      <div className="text-[10px] text-gray-600 font-semibold mb-1">Upper</div>
-                      <div className="flex gap-2">
-                        {rightUpperByRow[rowNum].map(seat => renderSeat(seat))}
+                {/* Create columns for each seat position, stacking upper over lower */}
+                <div className="flex gap-2">
+                  {/* Get max number of seats in this row */}
+                  {Array.from({ 
+                    length: Math.max(
+                      rightUpperByRow[rowNum]?.length || 0, 
+                      rightLowerByRow[rowNum]?.length || 0
+                    ) 
+                  }).map((_, seatIndex) => {
+                    const upperSeat = rightUpperByRow[rowNum]?.[seatIndex]
+                    const lowerSeat = rightLowerByRow[rowNum]?.[seatIndex]
+                    
+                    return (
+                      <div key={`right-${rowNum}-${seatIndex}`} className="flex flex-col gap-1">
+                        {/* Upper seat on top */}
+                        {upperSeat ? (
+                          <div className="relative">
+                            <div className="absolute -top-3 left-0 text-[8px] text-purple-600 font-bold">Upper</div>
+                            {renderSeat(upperSeat)}
+                          </div>
+                        ) : (
+                          <div className="w-9 h-9"></div>
+                        )}
+                        
+                        {/* Lower seat at bottom */}
+                        {lowerSeat ? (
+                          <div className="relative">
+                            <div className="absolute -top-3 left-0 text-[8px] text-blue-600 font-bold">Lower</div>
+                            {renderSeat(lowerSeat)}
+                          </div>
+                        ) : (
+                          <div className="w-9 h-9"></div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  
-                  {rightLowerByRow[rowNum] && rightLowerByRow[rowNum].length > 0 && (
-                    <div className="flex-1">
-                      <div className="text-[10px] text-gray-600 font-semibold mb-1">Lower</div>
-                      <div className="flex gap-2">
-                        {rightLowerByRow[rowNum].map(seat => renderSeat(seat))}
-                      </div>
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -288,7 +401,7 @@ const SeatLayout = ({
     )
   }
 
-  const totalSeatsInLayout = hasNewLayout ? allLayoutSeats.length : 0
+  const totalSeatsInLayout = effectiveLayout ? allLayoutSeats.length : 0
   
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
@@ -297,7 +410,7 @@ const SeatLayout = ({
         <div>
           <h3 className="text-lg font-semibold text-gray-900">🪑 Select Your Seats</h3>
           <p className="text-sm text-gray-500 capitalize">
-            {hasNewLayout ? `${totalRows} Rows • ${totalSeatsInLayout} Total Seats` : 'Bus Layout'}
+            {effectiveLayout ? `${effectiveLayout.totalRows} Rows • ${totalSeatsInLayout} Total Seats` : 'Bus Layout'}
           </p>
         </div>
         <div className="text-sm text-gray-600">
@@ -336,7 +449,7 @@ const SeatLayout = ({
 
         {/* Seats */}
         <div className="max-w-4xl mx-auto">
-          {hasNewLayout ? renderNewLayout() : (
+          {effectiveLayout ? renderNewLayout() : (
             <div className="text-center py-8 text-gray-500">
               <p className="text-lg">⚠️ No seat layout configured</p>
               <p className="text-sm">Please contact admin to set up bus layout</p>

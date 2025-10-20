@@ -372,30 +372,45 @@ npm run dev
 
 ## 🚀 Deployment
 
-### Backend (Heroku / Railway / Render)
+### Render Deployment (Recommended)
 
-1. Set environment variables
-2. Update `start` script in package.json
-3. Deploy with `git push`
+**Complete deployment guide available:** See [`RENDER_DEPLOYMENT_CHECKLIST.md`](./RENDER_DEPLOYMENT_CHECKLIST.md)
 
+This project includes a `render.yaml` configuration for easy deployment to Render.com:
+
+1. **Connect GitHub Repository** to Render
+2. **Set Required Environment Variables** (see checklist)
+3. **Deploy** - Render will automatically deploy both services
+
+**Quick Start:**
+- Backend will be available at: `https://easyluxury-backend.onrender.com`
+- Frontend will be available at: `https://easyluxury-frontend.onrender.com`
+
+### Required Environment Variables
+
+**Backend:**
 ```env
 MONGO_URI=your_mongodb_atlas_uri
-JWT_SECRET=your_secure_secret
+JWT_SECRET=auto_generated_by_render
 NODE_ENV=production
-FRONTEND_URL=https://your-frontend-url.com
+FRONTEND_URL=https://easyluxury-frontend.onrender.com
+ADMIN_PASSWORD=your_secure_password
 ```
 
-### Frontend (Vercel / Netlify)
-
-1. Build for production: `npm run build`
-2. Set environment variables
-3. Deploy with Vercel CLI or connect GitHub repo
-
+**Frontend:**
 ```env
-VITE_API_BASE_URL=https://your-backend-url.com/api/v1
-VITE_SOCKET_URL=https://your-backend-url.com
+VITE_API_BASE_URL=https://easyluxury-backend.onrender.com/api/v1
+VITE_SOCKET_URL=https://easyluxury-backend.onrender.com
 VITE_MAPTILER_API_KEY=your_api_key
 ```
+
+### Other Platforms (Heroku / Railway / Vercel / Netlify)
+
+1. Build for production: `npm run build`
+2. Set environment variables (see above)
+3. Deploy with platform CLI or connect GitHub repo
+
+**⚠️ Important:** Frontend environment variables must be set BEFORE building, as Vite embeds them at build time.
 
 ---
 

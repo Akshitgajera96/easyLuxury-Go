@@ -22,7 +22,7 @@ const NotFoundPage = () => {
             transition={{ delay: 0.2 }}
             className="text-8xl mb-4"
           >
-            ??
+            🚌
           </motion.div>
           <motion.div
             initial={{ opacity: 0 }}

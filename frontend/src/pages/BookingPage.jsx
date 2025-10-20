@@ -74,6 +74,25 @@ const BookingPage = () => {
     }
   }
 
+  // Debug: Log bus data to console
+  useEffect(() => {
+    console.log('🚌 Bus data received in BookingPage:', {
+      busNumber: bus.busNumber,
+      hasSeatLayout: !!bus.seatLayout,
+      seatLayoutStructure: bus.seatLayout ? {
+        hasLeft: !!bus.seatLayout.left,
+        hasRight: !!bus.seatLayout.right,
+        hasLowerDeck: !!bus.seatLayout.lowerDeck,
+        hasUpperDeck: !!bus.seatLayout.upperDeck,
+        leftUpperCount: bus.seatLayout.left?.upper?.length || 0,
+        leftLowerCount: bus.seatLayout.left?.lower?.length || 0,
+        rightUpperCount: bus.seatLayout.right?.upper?.length || 0,
+        rightLowerCount: bus.seatLayout.right?.lower?.length || 0
+      } : 'NO LAYOUT',
+      fullSeatLayout: bus.seatLayout
+    });
+  }, [bus])
+
   const bookedSeats = ['U1-1', 'L2-3', 'U5-2'] // Mock booked seats
   const lockedSeats = ['U3-1'] // Mock locked seats
 

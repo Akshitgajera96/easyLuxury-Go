@@ -145,7 +145,7 @@ const StaffDashboardPage = () => {
                   }`}>
                     <div>
                       <p className="font-semibold">
-                        {trip.route?.sourceCity || trip.route?.from || 'N/A'} ? {trip.route?.destinationCity || trip.route?.to || 'N/A'}
+                        {trip.route?.sourceCity || trip.route?.from || 'N/A'} → {trip.route?.destinationCity || trip.route?.to || 'N/A'}
                       </p>
                       <p className="text-sm text-gray-600">
                         {formatDateTime(trip.departureDateTime)} - {formatDateTime(trip.arrivalDateTime)}

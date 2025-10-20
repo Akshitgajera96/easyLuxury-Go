@@ -78,8 +78,8 @@ const Sidebar = ({ isOpen = true, onClose }) => {
                 />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-accent">easyLuxury</h2>
-                <p className="text-sm text-gray-600">
+                <h2 className="text-lg font-bold" style={{ color: '#000000' }}>easyLuxury</h2>
+                <p className="text-sm" style={{ color: '#000000' }}>
                   {isAdmin ? 'Admin Panel' : isStaff ? 'Staff Portal' : 'My Account'}
                 </p>
               </div>
@@ -105,8 +105,8 @@ const Sidebar = ({ isOpen = true, onClose }) => {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-                <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+                <p className="text-sm font-medium truncate" style={{ color: '#000000' }}>{user?.name}</p>
+                <p className="text-xs truncate" style={{ color: '#000000' }}>{user?.email}</p>
                 <span className="inline-block mt-1 px-2 py-1 text-xs bg-accent-light text-accent-dark rounded-full font-semibold border border-accent">
                   {user?.role?.toUpperCase()}
                 </span>
@@ -128,9 +128,10 @@ const Sidebar = ({ isOpen = true, onClose }) => {
                   onClick={onClose}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActivePath(item.path)
-                      ? 'bg-accent text-gray-900 shadow-lg font-semibold'
-                      : 'text-gray-700 hover:text-accent hover:bg-accent-light'
+                      ? 'bg-accent shadow-lg font-semibold'
+                      : 'hover:text-accent hover:bg-accent-light'
                   }`}
+                  style={{ color: '#000000' }}
                 >
                   <span className="text-lg">{item.icon}</span>
                   <span>{item.label}</span>
@@ -143,10 +144,11 @@ const Sidebar = ({ isOpen = true, onClose }) => {
           <div className="flex-shrink-0 p-4 border-t border-gray-200">
             <Link
               to="/"
-              className="flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-accent hover:bg-accent-light transition-colors"
+              className="flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold hover:text-accent hover:bg-accent-light transition-colors"
+              style={{ color: '#000000', fontWeight: '600' }}
             >
-              <span className="text-lg">🏠</span>
-              <span>Back to Home</span>
+              <span className="text-xl">🏠</span>
+              <span style={{ color: '#000000', fontWeight: '600' }}>Back to Home</span>
             </Link>
           </div>
         </div>

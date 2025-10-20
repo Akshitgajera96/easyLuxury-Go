@@ -43,7 +43,7 @@ const PassengersPage = () => {
               <p className="text-3xl font-bold text-gray-900">{passengers.length}</p>
             </div>
             <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">??</span>
+              <span className="text-2xl">👥</span>
             </div>
           </div>
         </div>
@@ -54,7 +54,7 @@ const PassengersPage = () => {
               <p className="text-3xl font-bold text-green-600">{boardedCount}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <span className="text-2xl">?</span>
+              <span className="text-2xl">✓</span>
             </div>
           </div>
         </div>
@@ -65,7 +65,7 @@ const PassengersPage = () => {
               <p className="text-3xl font-bold text-black40">{pendingCount}</p>
             </div>
             <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">?</span>
+              <span className="text-2xl">⏳</span>
             </div>
           </div>
         </div>

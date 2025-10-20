@@ -65,15 +65,6 @@ const ManageBusesPage = () => {
   const handleAddBus = async (e) => {
     e.preventDefault()
     
-    // Validate seat layout is configured
-    if (!formData.seatLayout || 
-        !formData.seatLayout.lowerDeck || 
-        !formData.seatLayout.upperDeck ||
-        (!formData.seatLayout.lowerDeck.seats?.length && !formData.seatLayout.upperDeck.seats?.length)) {
-      toast.error('Please configure and generate the seat layout')
-      return
-    }
-    
     setLoading(true)
     try {
       const busData = {
@@ -353,7 +344,7 @@ const ManageBusesPage = () => {
                     min="1"
                     max="100"
                     value={formData.totalSeats}
-                    onChange={(e) => setFormData(prev => ({ ...prev, totalSeats: parseInt(e.target.value) }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, totalSeats: parseInt(e.target.value) || '' }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
                   />
                 </div>
@@ -417,11 +408,17 @@ const ManageBusesPage = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-accent text-gray-900 py-3 rounded-lg font-semibold hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    disabled={loading || !formData.seatLayout || 
+                      (!formData.seatLayout.left?.upper?.length && !formData.seatLayout.left?.lower?.length && 
+                       !formData.seatLayout.right?.upper?.length && !formData.seatLayout.right?.lower?.length)}
+                    className="flex-1 bg-accent text-gray-900 py-3 rounded-lg font-semibold hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {loading && <LoadingSpinner size="sm" variant="primary" />}
-                    Add Bus
+                    {!formData.seatLayout || 
+                     (!formData.seatLayout.left?.upper?.length && !formData.seatLayout.left?.lower?.length && 
+                      !formData.seatLayout.right?.upper?.length && !formData.seatLayout.right?.lower?.length)
+                      ? '⚠️ Generate Layout First' 
+                      : 'Add Bus'}
                   </button>
                 </div>
               </form>

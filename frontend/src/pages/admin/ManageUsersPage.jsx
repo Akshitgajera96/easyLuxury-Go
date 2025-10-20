@@ -323,7 +323,7 @@ const ManageUsersPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-semibold text-accent">
-                        ?{user.walletBalance}
+                        ₹{user.walletBalance}
                       </div>
                       <div className="text-sm text-gray-500">
                         {user.bookingsCount} bookings
@@ -383,7 +383,7 @@ const ManageUsersPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center py-12"
         >
-          <div className="text-6xl mb-4">??</div>
+          <div className="text-6xl mb-4">👤</div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No users found</h3>
           <p className="text-gray-600">No users match your current filters.</p>
         </motion.div>

@@ -22,7 +22,8 @@ const createBus = async (busData) => {
     amenities,
     hasAC,
     hasWifi,
-    hasCharging
+    hasCharging,
+    seatLayout
   } = busData;
 
   // Check if bus number already exists
@@ -40,13 +41,26 @@ const createBus = async (busData) => {
     amenities: amenities || [],
     hasAC: hasAC || false,
     hasWifi: hasWifi || false,
-    hasCharging: hasCharging || false
+    hasCharging: hasCharging || false,
+    seatLayout: seatLayout || undefined
   });
 
-  // Generate seat layout
-  bus.generateSeatLayout();
+  // Generate seat layout only if not provided
+  if (!seatLayout || !seatLayout.left || !seatLayout.right) {
+    console.log('⚠️  No custom seat layout provided, generating default layout');
+    bus.generateSeatLayout();
+  } else {
+    console.log('✅ Custom seat layout received:', {
+      leftUpper: seatLayout.left.upper?.length || 0,
+      leftLower: seatLayout.left.lower?.length || 0,
+      rightUpper: seatLayout.right.upper?.length || 0,
+      rightLower: seatLayout.right.lower?.length || 0,
+      totalRows: seatLayout.totalRows
+    });
+  }
 
   await bus.save();
+  console.log('✅ Bus saved successfully with seatLayout');
   return bus;
 };
 
@@ -138,9 +152,11 @@ const updateBus = async (busId, updateData) => {
     }
   });
 
-  // Regenerate seat layout if total seats changed
+  // Regenerate seat layout only if total seats changed AND no custom layout provided
   if (updateData.totalSeats && updateData.totalSeats !== bus.totalSeats) {
-    bus.generateSeatLayout();
+    if (!updateData.seatLayout || !updateData.seatLayout.left || !updateData.seatLayout.right) {
+      bus.generateSeatLayout();
+    }
   }
 
   await bus.save();

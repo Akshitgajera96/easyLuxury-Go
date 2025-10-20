@@ -338,7 +338,7 @@ const ManageRoutesPage = () => {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {route.sourceCity} ? {route.destinationCity}
+                              {route.sourceCity} → {route.destinationCity}
                             </div>
                             <div className="text-sm text-gray-500">
                               Route ID: {route._id.slice(-6)}
@@ -353,7 +353,7 @@ const ManageRoutesPage = () => {
                         <div className="text-sm text-gray-900">{route.estimatedDuration}h</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-accent">?{route.baseFare}</div>
+                        <div className="text-sm font-semibold text-accent">₹{route.baseFare}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -515,7 +515,7 @@ const RouteFormModal = ({
                 options={cities}
                 placeholder="Type or select source city"
                 label="Source City"
-                icon="??"
+                icon="📍"
                 required={true}
               />
             </div>
@@ -528,7 +528,7 @@ const RouteFormModal = ({
                 options={cities}
                 placeholder="Type or select destination city"
                 label="Destination City"
-                icon="??"
+                icon="🏁"
                 required={true}
               />
             </div>
@@ -570,7 +570,7 @@ const RouteFormModal = ({
             {/* Base Fare */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Base Fare (?)
+                Base Fare (₹)
               </label>
               <input
                 type="number"

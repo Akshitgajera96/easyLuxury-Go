@@ -139,19 +139,19 @@ const TripPage = () => {
               <h1 className="text-2xl font-bold">Available Buses</h1>
               <p className="text-accent">
                 {from && to ? (
-                  <>{from} ? {to} � {date ? new Date(date).toLocaleDateString() : 'All Dates'} � {passengers} {passengers === '1' ? 'Passenger' : 'Passengers'}</>
+                  <>{from} → {to} � {date ? new Date(date).toLocaleDateString() : 'All Dates'} � {passengers} {passengers === '1' ? 'Passenger' : 'Passengers'}</>
                 ) : (
-                  <>All Available Routes � Browse and filter buses</>
+                  <>All Available Routes � Browse and filter buses</>
                 )}
               </p>
               {from && to && date && (
                 <p className="text-accent text-sm mt-1">
-                  ?? Showing trips for 3 days starting from selected date
+                  💡 Showing trips for 3 days starting from selected date
                 </p>
               )}
               {!from && !to && (
                 <p className="text-accent text-sm mt-1">
-                  ?? Use filters to narrow down your search
+                  💡 Use filters to narrow down your search
                 </p>
               )}
             </div>
@@ -234,8 +234,8 @@ const TripPage = () => {
                     className="w-full"
                   />
                   <div className="flex justify-between text-sm text-gray-600">
-                    <span>?0</span>
-                    <span>?{filters.priceRange[1]}</span>
+                    <span>₹0</span>
+                    <span>₹{filters.priceRange[1]}</span>
                   </div>
                 </div>
               </div>
@@ -286,7 +286,7 @@ const TripPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="text-6xl mb-4">??</div>
+                <div className="text-6xl mb-4">🚌</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No buses found</h3>
                 <p className="text-gray-600 mb-4">
                   We couldn't find any buses matching your criteria. Try adjusting your filters or search parameters.

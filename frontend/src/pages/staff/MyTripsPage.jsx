@@ -14,7 +14,7 @@ const MyTripsPage = () => {
     upcoming: [
       {
         id: 'TR001',
-        route: 'Mumbai ? Pune',
+        route: 'Mumbai → Pune',
         date: '2025-10-12',
         time: '10:00 AM',
         busNumber: 'MH-12-AB-1234',
@@ -23,7 +23,7 @@ const MyTripsPage = () => {
       },
       {
         id: 'TR002',
-        route: 'Delhi ? Jaipur',
+        route: 'Delhi → Jaipur',
         date: '2025-10-13',
         time: '02:00 PM',
         busNumber: 'DL-01-XY-5678',
@@ -34,7 +34,7 @@ const MyTripsPage = () => {
     ongoing: [
       {
         id: 'TR003',
-        route: 'Bangalore ? Chennai',
+        route: 'Bangalore → Chennai',
         date: '2025-10-11',
         time: '08:00 AM',
         busNumber: 'KA-05-MN-9012',
@@ -46,7 +46,7 @@ const MyTripsPage = () => {
     completed: [
       {
         id: 'TR004',
-        route: 'Kolkata ? Delhi',
+        route: 'Kolkata → Delhi',
         date: '2025-10-10',
         time: '06:00 AM',
         busNumber: 'WB-03-CD-3456',
