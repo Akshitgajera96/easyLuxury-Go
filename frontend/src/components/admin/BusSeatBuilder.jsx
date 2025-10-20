@@ -276,48 +276,50 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
                 
                 {/* Row by row display */}
                 {Array.from({ length: config.rows }).map((_, rowIndex) => (
-                  <div key={`left-row-${rowIndex}`} className="border border-accent rounded-lg p-2 bg-accent/10">
-                    <div className="text-xs text-gray-500 mb-1 text-center">Row {rowIndex + 1}</div>
+                  <div key={`left-row-${rowIndex}`} className="border border-accent rounded-lg p-3 bg-accent/10">
+                    <div className="text-xs text-gray-600 mb-2 text-center font-semibold">Row {rowIndex + 1}</div>
                     
-                    {/* Upper seats for this row */}
-                    {config.leftUpperSeats > 0 && (
-                      <div className="mb-2">
-                        <div className="text-xs font-semibold text-black40 mb-1">Upper</div>
-                        <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${config.leftUpperSeats}, 1fr)` }}>
-                          {seatLayout.left.upper
-                            .filter(seat => seat.position.row === rowIndex + 1)
-                            .map(seat => (
-                              <div
-                                key={seat.seatNumber}
-                                className="bg-black40 text-white text-[10px] font-bold rounded-full aspect-square flex items-center justify-center shadow-sm hover:bg-black40 transition-colors w-10 h-10"
-                                title={seat.seatType}
-                              >
-                                {seat.seatNumber}
-                              </div>
-                            ))}
+                    <div className="space-y-2">
+                      {/* Upper seats for this row */}
+                      {config.leftUpperSeats > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-semibold text-sky-700 w-12">Upper</div>
+                          <div className="flex gap-2">
+                            {seatLayout.left.upper
+                              .filter(seat => seat.position.row === rowIndex + 1)
+                              .map(seat => (
+                                <div
+                                  key={seat.seatNumber}
+                                  className="bg-black40 text-white text-xs font-bold rounded-lg flex items-center justify-center shadow-sm hover:bg-gray-800 transition-colors w-12 h-12"
+                                  title={seat.seatType}
+                                >
+                                  {seat.seatNumber}
+                                </div>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    
-                    {/* Lower seats for this row */}
-                    {config.leftLowerSeats > 0 && (
-                      <div>
-                        <div className="text-xs font-semibold text-black40 mb-1">Lower</div>
-                        <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${config.leftLowerSeats}, 1fr)` }}>
-                          {seatLayout.left.lower
-                            .filter(seat => seat.position.row === rowIndex + 1)
-                            .map(seat => (
-                              <div
-                                key={seat.seatNumber}
-                                className="bg-black40 text-white text-[10px] font-bold rounded-full aspect-square flex items-center justify-center shadow-sm hover:bg-black40 transition-colors w-10 h-10"
-                                title={seat.seatType}
-                              >
-                                {seat.seatNumber}
-                              </div>
-                            ))}
+                      )}
+                      
+                      {/* Lower seats for this row */}
+                      {config.leftLowerSeats > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-semibold text-sky-700 w-12">Lower</div>
+                          <div className="flex gap-2">
+                            {seatLayout.left.lower
+                              .filter(seat => seat.position.row === rowIndex + 1)
+                              .map(seat => (
+                                <div
+                                  key={seat.seatNumber}
+                                  className="bg-black40 text-white text-xs font-bold rounded-lg flex items-center justify-center shadow-sm hover:bg-gray-800 transition-colors w-12 h-12"
+                                  title={seat.seatType}
+                                >
+                                  {seat.seatNumber}
+                                </div>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -337,48 +339,50 @@ const BusSeatBuilder = ({ busType, totalSeats, onSeatLayoutChange }) => {
                 
                 {/* Row by row display */}
                 {Array.from({ length: config.rows }).map((_, rowIndex) => (
-                  <div key={`right-row-${rowIndex}`} className="border border-sky-200 rounded-lg p-2 bg-sky-50">
-                    <div className="text-xs text-gray-500 mb-1 text-center">Row {rowIndex + 1}</div>
+                  <div key={`right-row-${rowIndex}`} className="border border-sky-200 rounded-lg p-3 bg-sky-50">
+                    <div className="text-xs text-gray-600 mb-2 text-center font-semibold">Row {rowIndex + 1}</div>
                     
-                    {/* Upper seats for this row */}
-                    {config.rightUpperSeats > 0 && (
-                      <div className="mb-2">
-                        <div className="text-xs font-semibold text-sky-700 mb-1">Upper</div>
-                        <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${config.rightUpperSeats}, 1fr)` }}>
-                          {seatLayout.right.upper
-                            .filter(seat => seat.position.row === rowIndex + 1)
-                            .map(seat => (
-                              <div
-                                key={seat.seatNumber}
-                                className="bg-sky-500 text-white text-[10px] font-bold rounded-full aspect-square flex items-center justify-center shadow-sm hover:bg-gradient-to-r from-info to-info-dark shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 transition-colors w-10 h-10"
-                                title={seat.seatType}
-                              >
-                                {seat.seatNumber}
-                              </div>
-                            ))}
+                    <div className="space-y-2">
+                      {/* Upper seats for this row */}
+                      {config.rightUpperSeats > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-semibold text-sky-700 w-12">Upper</div>
+                          <div className="flex gap-2">
+                            {seatLayout.right.upper
+                              .filter(seat => seat.position.row === rowIndex + 1)
+                              .map(seat => (
+                                <div
+                                  key={seat.seatNumber}
+                                  className="bg-sky-500 text-white text-xs font-bold rounded-lg flex items-center justify-center shadow-sm hover:bg-sky-600 transition-colors w-12 h-12"
+                                  title={seat.seatType}
+                                >
+                                  {seat.seatNumber}
+                                </div>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    
-                    {/* Lower seats for this row */}
-                    {config.rightLowerSeats > 0 && (
-                      <div>
-                        <div className="text-xs font-semibold text-sky-700 mb-1">Lower</div>
-                        <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${config.rightLowerSeats}, 1fr)` }}>
-                          {seatLayout.right.lower
-                            .filter(seat => seat.position.row === rowIndex + 1)
-                            .map(seat => (
-                              <div
-                                key={seat.seatNumber}
-                                className="bg-gradient-to-r from-info to-info-dark shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-white text-[10px] font-bold rounded-full aspect-square flex items-center justify-center shadow-sm hover:bg-sky-700 transition-colors w-10 h-10"
-                                title={seat.seatType}
-                              >
-                                {seat.seatNumber}
-                              </div>
-                            ))}
+                      )}
+                      
+                      {/* Lower seats for this row */}
+                      {config.rightLowerSeats > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-semibold text-sky-700 w-12">Lower</div>
+                          <div className="flex gap-2">
+                            {seatLayout.right.lower
+                              .filter(seat => seat.position.row === rowIndex + 1)
+                              .map(seat => (
+                                <div
+                                  key={seat.seatNumber}
+                                  className="bg-sky-500 text-white text-xs font-bold rounded-lg flex items-center justify-center shadow-sm hover:bg-sky-600 transition-colors w-12 h-12"
+                                  title={seat.seatType}
+                                >
+                                  {seat.seatNumber}
+                                </div>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
