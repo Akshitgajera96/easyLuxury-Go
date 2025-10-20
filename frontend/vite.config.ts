@@ -13,5 +13,25 @@ export default defineConfig({
         secure: false,
       },
     },
+  },
+  build: {
+    // Optimize for Render's free tier memory constraints
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor code to reduce memory usage during build
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'map-vendor': ['mapbox-gl', 'react-map-gl'],
+        }
+      }
+    },
+    // Reduce memory usage
+    minify: 'esbuild',
+    sourcemap: false,
+  },
+  // Optimize dependencies resolution
+  optimizeDeps: {
+    exclude: ['lucide-react']
   }
 })
