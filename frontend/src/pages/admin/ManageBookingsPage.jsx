@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
+import adminService from '../../services/adminService'
+import { toast } from 'react-hot-toast'
 
 const ManageBookingsPage = () => {
   const [bookings, setBookings] = useState([])
@@ -13,127 +15,74 @@ const ManageBookingsPage = () => {
   const [selectedBooking, setSelectedBooking] = useState(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [error, setError] = useState(null)
   const [filters, setFilters] = useState({
     status: 'all',
     dateRange: 'all'
   })
 
   useEffect(() => {
-    // Simulate API call to fetch bookings
-    const fetchBookings = async () => {
-      setLoading(true)
-      try {
-        // In real app: await bookingService.getAllBookings()
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        const mockBookings = [
-          {
-            id: 'BK001',
-            user: { name: 'Raj Sharma', email: 'raj@example.com', phone: '9876543210' },
-            trip: {
-              route: { from: 'Mumbai', to: 'Goa' },
-              departureDateTime: '2024-01-20T08:00:00',
-              bus: { busNumber: 'MH01AB1234', operator: 'Luxury Travels' }
-            },
-            seats: ['U1-1', 'U1-2'],
-            passengers: [
-              { name: 'Raj Sharma', age: 28, gender: 'male' },
-              { name: 'Priya Sharma', age: 26, gender: 'female' }
-            ],
-            totalAmount: 2400,
-            bookingStatus: 'confirmed',
-            paymentStatus: 'completed',
-            paymentMethod: 'wallet',
-            pnr: 'EL20240120001',
-            createdAt: '2024-01-15T10:30:00'
-          },
-          {
-            id: 'BK002',
-            user: { name: 'Amit Kumar', email: 'amit@example.com', phone: '9876543211' },
-            trip: {
-              route: { from: 'Delhi', to: 'Jaipur' },
-              departureDateTime: '2024-01-20T10:00:00',
-              bus: { busNumber: 'MH01CD5678', operator: 'Comfort Rides' }
-            },
-            seats: ['L2-1'],
-            passengers: [
-              { name: 'Amit Kumar', age: 32, gender: 'male' }
-            ],
-            totalAmount: 800,
-            bookingStatus: 'pending',
-            paymentStatus: 'pending',
-            paymentMethod: 'card',
-            pnr: 'EL20240120002',
-            createdAt: '2024-01-15T14:20:00'
-          },
-          {
-            id: 'BK003',
-            user: { name: 'Priya Patel', email: 'priya@example.com', phone: '9876543212' },
-            trip: {
-              route: { from: 'Bangalore', to: 'Chennai' },
-              departureDateTime: '2024-01-20T14:00:00',
-              bus: { busNumber: 'MH01EF9012', operator: 'Express Travels' }
-            },
-            seats: ['S1', 'S2', 'S3'],
-            passengers: [
-              { name: 'Priya Patel', age: 25, gender: 'female' },
-              { name: 'Rahul Patel', age: 28, gender: 'male' },
-              { name: 'Neha Patel', age: 22, gender: 'female' }
-            ],
-            totalAmount: 1800,
-            bookingStatus: 'cancelled',
-            paymentStatus: 'refunded',
-            paymentMethod: 'upi',
-            pnr: 'EL20240120003',
-            createdAt: '2024-01-14T09:15:00'
-          }
-        ]
-        setBookings(mockBookings)
-      } catch (error) {
-        console.error('Failed to fetch bookings:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchBookings()
   }, [])
 
-  const handleStatusUpdate = async (bookingId, newStatus) => {
+  const fetchBookings = async () => {
     setLoading(true)
+    setError(null)
     try {
-      // In real app: await bookingService.updateBookingStatus(bookingId, { bookingStatus: newStatus })
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const filterParams = {}
+      if (filters.status !== 'all') {
+        filterParams.status = filters.status
+      }
       
-      setBookings(prev => prev.map(booking => 
-        booking.id === bookingId ? { ...booking, bookingStatus: newStatus } : booking
-      ))
+      const response = await adminService.getAllBookings(filterParams)
+      
+      if (response.data.success) {
+        setBookings(response.data.data.bookings || [])
+      } else {
+        throw new Error('Failed to fetch bookings')
+      }
     } catch (error) {
-      console.error('Failed to update booking status:', error)
+      console.error('Failed to fetch bookings:', error)
+      setError(error.response?.data?.message || 'Failed to load bookings')
+      toast.error('Failed to load bookings')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleStatusUpdate = async (bookingId, newStatus) => {
+    try {
+      const response = await adminService.updateBookingStatus(bookingId, newStatus)
+      
+      if (response.data.success) {
+        toast.success('Booking status updated successfully')
+        fetchBookings()
+      } else {
+        throw new Error('Failed to update booking status')
+      }
+    } catch (error) {
+      console.error('Failed to update booking status:', error)
+      toast.error(error.response?.data?.message || 'Failed to update booking status')
     }
   }
 
   const handleCancelBooking = async () => {
     if (!selectedBooking) return
     
-    setLoading(true)
     try {
-      // In real app: await bookingService.cancelBooking(selectedBooking.id)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await adminService.updateBookingStatus(selectedBooking._id, 'cancelled')
       
-      setBookings(prev => prev.map(booking => 
-        booking.id === selectedBooking.id 
-          ? { ...booking, bookingStatus: 'cancelled', paymentStatus: 'refunded' }
-          : booking
-      ))
-      setShowCancelDialog(false)
-      setSelectedBooking(null)
+      if (response.data.success) {
+        toast.success('Booking cancelled successfully')
+        setShowCancelDialog(false)
+        setSelectedBooking(null)
+        fetchBookings()
+      } else {
+        throw new Error('Failed to cancel booking')
+      }
     } catch (error) {
       console.error('Failed to cancel booking:', error)
-    } finally {
-      setLoading(false)
+      toast.error(error.response?.data?.message || 'Failed to cancel booking')
     }
   }
 
@@ -212,7 +161,7 @@ const ManageBookingsPage = () => {
       <div className="grid grid-cols-1 gap-6">
         {filteredBookings.map((booking, index) => (
           <motion.div
-            key={booking.id}
+            key={booking._id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
@@ -224,13 +173,13 @@ const ManageBookingsPage = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      {booking.trip.route.from} → {booking.trip.route.to}
+                      {booking.trip?.route?.sourceCity || 'N/A'} → {booking.trip?.route?.destinationCity || 'N/A'}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {formatDateTime(booking.trip.departureDateTime)}
+                      {booking.trip?.departureDateTime ? formatDateTime(booking.trip.departureDateTime) : 'N/A'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      PNR: {booking.pnr} � Booked on: {formatDateTime(booking.createdAt)}
+                      PNR: {booking.pnrNumber} | Booked on: {formatDateTime(booking.createdAt)}
                     </p>
                   </div>
                   
@@ -249,21 +198,21 @@ const ManageBookingsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <p className="font-medium text-gray-900">Customer</p>
-                    <p>{booking.user.name}</p>
-                    <p className="text-gray-600">{booking.user.email}</p>
-                    <p className="text-gray-600">{booking.user.phone}</p>
+                    <p>{booking.user?.name || 'N/A'}</p>
+                    <p className="text-gray-600">{booking.user?.email || 'N/A'}</p>
+                    <p className="text-gray-600">{booking.user?.phone || 'N/A'}</p>
                   </div>
                   
                   <div>
                     <p className="font-medium text-gray-900">Bus Details</p>
-                    <p>{booking.trip.bus.busNumber}</p>
-                    <p className="text-gray-600">{booking.trip.bus.operator}</p>
+                    <p>{booking.trip?.bus?.busNumber || 'N/A'}</p>
+                    <p className="text-gray-600">{booking.trip?.bus?.busName || 'N/A'}</p>
                   </div>
                   
                   <div>
                     <p className="font-medium text-gray-900">Booking Details</p>
-                    <p>{booking.seats.length} seat(s) � ₹{booking.totalAmount}</p>
-                    <p className="text-gray-600">{booking.paymentMethod.toUpperCase()} � {booking.seats.join(', ')}</p>
+                    <p>{booking.seats?.length || 0} seat(s) | ₹{booking.totalAmount || 0}</p>
+                    <p className="text-gray-600">{booking.paymentMethod?.toUpperCase() || 'N/A'} | {booking.seats?.map(s => s.seatNumber).join(', ') || 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -275,7 +224,7 @@ const ManageBookingsPage = () => {
                     setSelectedBooking(booking)
                     setShowDetailsModal(true)
                   }}
-                  className="px-4 py-2 bg-accent/20 text-black40 rounded-lg font-medium hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300/30 transition-colors"
+                  className="px-4 py-2 bg-accent text-white rounded-lg font-medium hover:bg-accent-dark transition-colors"
                 >
                   View Details
                 </button>
@@ -294,7 +243,7 @@ const ManageBookingsPage = () => {
                 
                 <select
                   value={booking.bookingStatus}
-                  onChange={(e) => handleStatusUpdate(booking.id, e.target.value)}
+                  onChange={(e) => handleStatusUpdate(booking._id, e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent text-sm"
                 >
                   <option value="pending">Pending</option>
@@ -338,9 +287,9 @@ const ManageBookingsPage = () => {
                 <h3 className="text-xl font-bold text-gray-900">Booking Details</h3>
                 <button
                   onClick={() => setShowDetailsModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
-                  ?
+                  ×
                 </button>
               </div>
 
@@ -351,19 +300,19 @@ const ManageBookingsPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Route</p>
-                      <p className="font-medium">{selectedBooking.trip.route.from} → {selectedBooking.trip.route.to}</p>
+                      <p className="font-medium">{selectedBooking.trip?.route?.sourceCity || 'N/A'} → {selectedBooking.trip?.route?.destinationCity || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Departure</p>
-                      <p className="font-medium">{formatDateTime(selectedBooking.trip.departureDateTime)}</p>
+                      <p className="font-medium">{selectedBooking.trip?.departureDateTime ? formatDateTime(selectedBooking.trip.departureDateTime) : 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Bus</p>
-                      <p className="font-medium">{selectedBooking.trip.bus.busNumber}</p>
+                      <p className="font-medium">{selectedBooking.trip?.bus?.busNumber || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Operator</p>
-                      <p className="font-medium">{selectedBooking.trip.bus.operator}</p>
+                      <p className="text-gray-600">Bus Name</p>
+                      <p className="font-medium">{selectedBooking.trip?.bus?.busName || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -374,19 +323,19 @@ const ManageBookingsPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Name</p>
-                      <p className="font-medium">{selectedBooking.user.name}</p>
+                      <p className="font-medium">{selectedBooking.user?.name || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Email</p>
-                      <p className="font-medium">{selectedBooking.user.email}</p>
+                      <p className="font-medium">{selectedBooking.user?.email || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Phone</p>
-                      <p className="font-medium">{selectedBooking.user.phone}</p>
+                      <p className="font-medium">{selectedBooking.user?.phone || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">PNR</p>
-                      <p className="font-medium">{selectedBooking.pnr}</p>
+                      <p className="font-medium">{selectedBooking.pnrNumber || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -395,12 +344,12 @@ const ManageBookingsPage = () => {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3">Passenger Details</h4>
                   <div className="space-y-3">
-                    {selectedBooking.passengers.map((passenger, index) => (
+                    {selectedBooking.seats?.map((seat, index) => (
                       <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div>
-                          <p className="font-medium">{passenger.name}</p>
+                          <p className="font-medium">{seat.passengerName}</p>
                           <p className="text-sm text-gray-600">
-                            {passenger.age} years � {passenger.gender} � Seat: {selectedBooking.seats[index]}
+                            {seat.passengerAge} years | {seat.passengerGender} | Seat: {seat.seatNumber}
                           </p>
                         </div>
                       </div>
@@ -414,11 +363,11 @@ const ManageBookingsPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-600">Total Amount</p>
-                      <p className="font-medium text-lg text-accent">₹{selectedBooking.totalAmount}</p>
+                      <p className="font-medium text-lg text-accent">₹{selectedBooking.totalAmount || 0}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Payment Method</p>
-                      <p className="font-medium">{selectedBooking.paymentMethod.toUpperCase()}</p>
+                      <p className="font-medium">{selectedBooking.paymentMethod?.toUpperCase() || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Payment Status</p>
@@ -453,8 +402,8 @@ const ManageBookingsPage = () => {
       <ConfirmDialog
         isOpen={showCancelDialog}
         title="Cancel Booking"
-        message={`Are you sure you want to cancel booking ${selectedBooking?.pnr}? This will refund the amount to the customer.`}
-        confirmText={loading ? "Cancelling..." : "Cancel Booking"}
+        message={`Are you sure you want to cancel booking ${selectedBooking?.pnrNumber}? This will refund the amount to the customer.`}
+        confirmText="Cancel Booking"
         cancelText="Keep Booking"
         onConfirm={handleCancelBooking}
         onCancel={() => {
@@ -462,7 +411,7 @@ const ManageBookingsPage = () => {
           setSelectedBooking(null)
         }}
         type="danger"
-        isLoading={loading}
+        isLoading={false}
       />
     </div>
   )

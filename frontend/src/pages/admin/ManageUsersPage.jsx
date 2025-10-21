@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
+import adminService from '../../services/adminService'
+import { toast } from 'react-hot-toast'
 
 const ManageUsersPage = () => {
   const [users, setUsers] = useState([])
@@ -13,125 +15,74 @@ const ManageUsersPage = () => {
   const [selectedUser, setSelectedUser] = useState(null)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [newRole, setNewRole] = useState('')
+  const [error, setError] = useState(null)
   const [filters, setFilters] = useState({
     role: 'all',
     status: 'all'
   })
 
   useEffect(() => {
-    // Simulate API call to fetch users
-    const fetchUsers = async () => {
-      setLoading(true)
-      try {
-        // In real app: await userService.getAllUsers()
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        const mockUsers = [
-          {
-            id: '1',
-            name: 'Raj Sharma',
-            email: 'raj@example.com',
-            phone: '9876543210',
-            role: 'customer',
-            walletBalance: 2500,
-            isActive: true,
-            createdAt: '2024-01-01',
-            lastLogin: '2024-01-15T10:30:00',
-            bookingsCount: 12
-          },
-          {
-            id: '2',
-            name: 'Admin User',
-            email: 'admin@easyluxury.com',
-            phone: '9876543211',
-            role: 'admin',
-            walletBalance: 0,
-            isActive: true,
-            createdAt: '2024-01-01',
-            lastLogin: '2024-01-15T14:20:00',
-            bookingsCount: 0
-          },
-          {
-            id: '3',
-            name: 'Driver Kumar',
-            email: 'driver@easyluxury.com',
-            phone: '9876543212',
-            role: 'staff',
-            walletBalance: 0,
-            isActive: true,
-            createdAt: '2024-01-02',
-            lastLogin: '2024-01-15T09:15:00',
-            bookingsCount: 0
-          },
-          {
-            id: '4',
-            name: 'Priya Patel',
-            email: 'priya@example.com',
-            phone: '9876543213',
-            role: 'customer',
-            walletBalance: 800,
-            isActive: false,
-            createdAt: '2024-01-03',
-            lastLogin: '2024-01-10T16:45:00',
-            bookingsCount: 5
-          },
-          {
-            id: '5',
-            name: 'Amit Singh',
-            email: 'amit@example.com',
-            phone: '9876543214',
-            role: 'customer',
-            walletBalance: 1500,
-            isActive: true,
-            createdAt: '2024-01-05',
-            lastLogin: '2024-01-15T11:20:00',
-            bookingsCount: 8
-          }
-        ]
-        setUsers(mockUsers)
-      } catch (error) {
-        console.error('Failed to fetch users:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchUsers()
   }, [])
 
-  const handleRoleUpdate = async (newRole) => {
-    if (!selectedUser) return
+  const fetchUsers = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await adminService.getUsersManagement()
+      
+      if (response.data.success) {
+        setUsers(response.data.data.users || [])
+      } else {
+        throw new Error('Failed to fetch users')
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+      setError(error.response?.data?.message || 'Failed to load users')
+      toast.error('Failed to load users')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRoleUpdate = async () => {
+    if (!selectedUser || !newRole) return
     
     setLoading(true)
     try {
-      // In real app: await userService.updateUserRole(selectedUser.id, newRole)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const response = await adminService.updateUserRole(selectedUser._id, newRole)
       
-      setUsers(prev => prev.map(user => 
-        user.id === selectedUser.id ? { ...user, role: newRole } : user
-      ))
-      setShowRoleModal(false)
-      setSelectedUser(null)
+      if (response.data.success) {
+        toast.success('User role updated successfully')
+        setShowRoleModal(false)
+        setSelectedUser(null)
+        setNewRole('')
+        fetchUsers()
+      } else {
+        throw new Error('Failed to update user role')
+      }
     } catch (error) {
       console.error('Failed to update user role:', error)
+      toast.error(error.response?.data?.message || 'Failed to update user role')
     } finally {
       setLoading(false)
     }
   }
 
   const handleStatusToggle = async (userId, currentStatus) => {
-    setLoading(true)
     try {
-      // In real app: await userService.updateUserStatus(userId, { isActive: !currentStatus })
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const response = await adminService.toggleUserStatus(userId)
       
-      setUsers(prev => prev.map(user => 
-        user.id === userId ? { ...user, isActive: !currentStatus } : user
-      ))
+      if (response.data.success) {
+        toast.success(`User ${currentStatus ? 'deactivated' : 'activated'} successfully`)
+        fetchUsers()
+      } else {
+        throw new Error('Failed to update user status')
+      }
     } catch (error) {
       console.error('Failed to update user status:', error)
-    } finally {
-      setLoading(false)
+      toast.error(error.response?.data?.message || 'Failed to update user status')
     }
   }
 
@@ -140,14 +91,19 @@ const ManageUsersPage = () => {
     
     setLoading(true)
     try {
-      // In real app: await userService.deleteUser(selectedUser.id)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await adminService.deleteUser(selectedUser._id)
       
-      setUsers(prev => prev.filter(user => user.id !== selectedUser.id))
-      setShowDeleteDialog(false)
-      setSelectedUser(null)
+      if (response.data.success) {
+        toast.success('User deleted successfully')
+        setShowDeleteDialog(false)
+        setSelectedUser(null)
+        fetchUsers()
+      } else {
+        throw new Error('Failed to delete user')
+      }
     } catch (error) {
       console.error('Failed to delete user:', error)
+      toast.error(error.response?.data?.message || 'Failed to delete user')
     } finally {
       setLoading(false)
     }
@@ -286,7 +242,7 @@ const ManageUsersPage = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user, index) => (
                 <motion.tr
-                  key={user.id}
+                  key={user._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -323,17 +279,17 @@ const ManageUsersPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-semibold text-accent">
-                        ₹{user.walletBalance}
+                        ₹{user.walletBalance || 0}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {user.bookingsCount} bookings
+                        {user.bookingsCount || 0} bookings
                       </div>
                     </div>
                   </td>
 
                   {/* Last Activity */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDateTime(user.lastLogin)}
+                    {user.lastLogin ? formatDateTime(user.lastLogin) : 'Never'}
                   </td>
 
                   {/* Actions */}
@@ -349,7 +305,7 @@ const ManageUsersPage = () => {
                         Change Role
                       </button>
                       <button
-                        onClick={() => handleStatusToggle(user.id, user.isActive)}
+                        onClick={() => handleStatusToggle(user._id, user.isActive)}
                         className={`text-xs ${
                           user.isActive 
                             ? 'text-black40 hover:text-black40' 
@@ -406,8 +362,8 @@ const ManageUsersPage = () => {
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600 mb-2">User: <span className="font-semibold">{selectedUser.name}</span></p>
-                  <p className="text-sm text-gray-600">Current Role: <span className="font-semibold capitalize">{selectedUser.role}</span></p>
+                  <p className="text-sm text-gray-600 mb-2">User: <span className="font-semibold">{selectedUser?.name}</span></p>
+                  <p className="text-sm text-gray-600">Current Role: <span className="font-semibold capitalize">{selectedUser?.role}</span></p>
                 </div>
 
                 <div>
@@ -415,7 +371,8 @@ const ManageUsersPage = () => {
                     Select New Role
                   </label>
                   <select
-                    defaultValue={selectedUser.role}
+                    value={newRole || selectedUser?.role}
+                    onChange={(e) => setNewRole(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
                   >
                     <option value="customer">Customer</option>
@@ -424,8 +381,8 @@ const ManageUsersPage = () => {
                   </select>
                 </div>
 
-                <div className="bg-accent/10 border border-accent rounded-lg p-4">
-                  <p className="text-sm text-black40">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
                     <strong>Warning:</strong> Changing user roles may affect their access permissions. 
                     Admin roles have full system access.
                   </p>
@@ -434,17 +391,20 @@ const ManageUsersPage = () => {
 
               <div className="flex space-x-3 pt-4">
                 <button
-                  onClick={() => setShowRoleModal(false)}
+                  onClick={() => {
+                    setShowRoleModal(false)
+                    setNewRole('')
+                  }}
                   className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleRoleUpdate('admin')} // In real app, get value from select
+                  onClick={handleRoleUpdate}
                   disabled={loading}
-                  className="flex-1 bg-accent text-gray-900 py-3 rounded-lg font-semibold hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-accent text-white py-3 rounded-lg font-semibold hover:bg-accent-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading && <LoadingSpinner size="sm" variant="primary" />}
+                  {loading && <LoadingSpinner size="sm" variant="white" />}
                   Update Role
                 </button>
               </div>
@@ -458,7 +418,7 @@ const ManageUsersPage = () => {
         isOpen={showDeleteDialog}
         title="Delete User"
         message={`Are you sure you want to delete user ${selectedUser?.name}? This action cannot be undone and will permanently remove all user data.`}
-        confirmText={loading ? "Deleting..." : "Delete User"}
+        confirmText="Delete User"
         cancelText="Keep User"
         onConfirm={handleDeleteUser}
         onCancel={() => {

@@ -360,6 +360,58 @@ const toggleUserStatus = async (userId) => {
 };
 
 /**
+ * Update user role
+ * @param {string} userId - User ID
+ * @param {string} role - New role
+ * @returns {object} Updated user
+ */
+const updateUserRole = async (userId, role) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Validate role
+  const validRoles = ['customer', 'admin', 'staff'];
+  if (!validRoles.includes(role)) {
+    throw new Error('Invalid role');
+  }
+
+  user.role = role;
+  await user.save();
+
+  return await User.findById(userId).select('-password');
+};
+
+/**
+ * Delete user
+ * @param {string} userId - User ID
+ * @returns {object} Result
+ */
+const deleteUser = async (userId) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Check if user has active bookings
+  const activeBookings = await Booking.countDocuments({
+    user: userId,
+    bookingStatus: { $in: ['confirmed', 'pending'] }
+  });
+
+  if (activeBookings > 0) {
+    throw new Error('Cannot delete user with active bookings');
+  }
+
+  await User.findByIdAndDelete(userId);
+
+  return { message: 'User deleted successfully' };
+};
+
+/**
  * Get system health status
  * @returns {object} System health information
  */
@@ -509,6 +561,8 @@ module.exports = {
   getDetailedAnalytics,
   getUsersManagement,
   toggleUserStatus,
+  updateUserRole,
+  deleteUser,
   getSystemHealth,
   getAllBookings,
   updateBookingStatus,

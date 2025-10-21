@@ -14,6 +14,7 @@ const corsOptions = require('./config/corsOptions');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
 const { validateEnv } = require('./config/validateEnv');
+const { startLocationScheduler, stopLocationScheduler } = require('./services/locationStatusScheduler');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -31,6 +32,7 @@ const staffRoutes = require('./routes/staffRoutes');
 const rentalInquiryRoutes = require('./routes/rentalInquiryRoutes');
 const locationRoutes = require('./routes/locationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const adminLocationRoutes = require('./routes/adminLocationRoutes');
 
 require('dotenv').config();
 
@@ -153,6 +155,7 @@ app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/rentals', rentalInquiryRoutes);
 app.use('/api/v1/location', locationRoutes);
 app.use('/api/v1/payment', paymentRoutes);
+app.use('/api/v1/admin/location-monitor', adminLocationRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
@@ -201,11 +204,15 @@ server.listen(PORT, () => {
 🔌 Socket.IO: http://localhost:${PORT}
 💾 Database: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}
   `);
+  
+  // Start location status monitoring scheduler
+  startLocationScheduler();
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down server gracefully...');
+  stopLocationScheduler();
   await mongoose.connection.close();
   console.log('📤 MongoDB connection closed');
   server.close(() => {

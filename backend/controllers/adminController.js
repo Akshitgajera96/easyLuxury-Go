@@ -173,6 +173,43 @@ const toggleUserStatus = async (req, res, next) => {
 };
 
 /**
+ * Update user role
+ * PATCH /api/v1/admin/users/:id/role
+ */
+const updateUserRole = async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    const user = await adminService.updateUserRole(req.params.id, role);
+
+    res.status(200).json({
+      success: true,
+      data: { user },
+      message: 'User role updated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete user
+ * DELETE /api/v1/admin/users/:id
+ */
+const deleteUser = async (req, res, next) => {
+  try {
+    const result = await adminService.deleteUser(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get system health
  * GET /api/v1/admin/system/health
  */
@@ -859,6 +896,8 @@ module.exports = {
   getOperationalAnalytics,
   getUsersManagement,
   toggleUserStatus,
+  updateUserRole,
+  deleteUser,
   getSystemHealth,
   getAllBookings,
   updateBookingStatus,

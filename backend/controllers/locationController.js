@@ -5,6 +5,8 @@
  */
 
 const Trip = require('../models/tripModel');
+const BusLocationStatus = require('../models/busLocationStatusModel');
+const LocationLog = require('../models/locationLogModel');
 
 /**
  * Update bus location for a trip
@@ -21,7 +23,7 @@ const updateLocation = async (req, res, next) => {
       });
     }
 
-    const trip = await Trip.findById(tripId);
+    const trip = await Trip.findById(tripId).populate('bus');
     
     if (!trip) {
       return res.status(404).json({
@@ -30,11 +32,13 @@ const updateLocation = async (req, res, next) => {
       });
     }
 
-    // Update current location
+    const now = new Date();
+
+    // Update current location in Trip
     trip.currentLocation = {
       latitude,
       longitude,
-      lastUpdated: new Date(),
+      lastUpdated: now,
       speed: speed || 0,
       heading: heading || 0
     };
@@ -47,7 +51,7 @@ const updateLocation = async (req, res, next) => {
     trip.locationHistory.push({
       latitude,
       longitude,
-      timestamp: new Date(),
+      timestamp: now,
       speed: speed || 0
     });
 
@@ -58,6 +62,73 @@ const updateLocation = async (req, res, next) => {
 
     await trip.save();
 
+    // Update or create BusLocationStatus for admin monitoring
+    let busStatus = await BusLocationStatus.findOne({ trip: tripId });
+    
+    if (!busStatus) {
+      // Create new status record
+      busStatus = await BusLocationStatus.create({
+        trip: tripId,
+        bus: trip.bus._id,
+        staff: req.user?.id, // From auth middleware
+        lastLocation: {
+          latitude,
+          longitude,
+          speed: speed || 0,
+          heading: heading || 0
+        },
+        lastUpdated: now,
+        tripStarted: true,
+        status: 'active'
+      });
+
+      // Log tracking started
+      await LocationLog.create({
+        trip: tripId,
+        bus: trip.bus._id,
+        staff: req.user?.id,
+        eventType: 'tracking_started',
+        newStatus: 'active',
+        location: { latitude, longitude },
+        performedBy: req.user?.email || 'staff',
+        notes: 'Location tracking started'
+      });
+    } else {
+      // Update existing status
+      const previousStatus = busStatus.status;
+      
+      busStatus.lastLocation = {
+        latitude,
+        longitude,
+        speed: speed || 0,
+        heading: heading || 0
+      };
+      busStatus.lastUpdated = now;
+      
+      if (!busStatus.staff && req.user?.id) {
+        busStatus.staff = req.user.id;
+      }
+      
+      if (!busStatus.tripStarted) {
+        busStatus.tripStarted = true;
+      }
+
+      // Update status based on timing
+      const { statusChanged, newStatus } = await busStatus.updateStatus();
+
+      // Log status change if it changed
+      if (statusChanged && previousStatus !== newStatus) {
+        await LocationLog.logStatusChange(
+          tripId,
+          trip.bus._id,
+          busStatus.staff,
+          previousStatus,
+          newStatus,
+          { latitude, longitude }
+        );
+      }
+    }
+
     // Emit socket event for real-time updates
     const io = req.app.get('io');
     if (io) {
@@ -67,7 +138,16 @@ const updateLocation = async (req, res, next) => {
         longitude,
         speed: speed || 0,
         heading: heading || 0,
-        timestamp: new Date()
+        timestamp: now
+      });
+
+      // Emit admin monitoring event
+      io.to('admin_monitoring').emit('bus_status_update', {
+        tripId,
+        busId: trip.bus._id,
+        status: busStatus.status,
+        location: { latitude, longitude, speed: speed || 0 },
+        lastUpdated: now
       });
     }
 
@@ -75,7 +155,8 @@ const updateLocation = async (req, res, next) => {
       success: true,
       data: {
         tripId,
-        location: trip.currentLocation
+        location: trip.currentLocation,
+        monitoringStatus: busStatus.status
       },
       message: 'Location updated successfully'
     });

@@ -6,10 +6,8 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { MapPin, Navigation, Clock, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react'
-import axios from 'axios'
+import staffService from '../../services/staffService'
 import { toast } from 'react-hot-toast'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const LocationTracker = ({ tripId, onLocationUpdate }) => {
   const [tracking, setTracking] = useState(false)
@@ -28,6 +26,12 @@ const LocationTracker = ({ tripId, onLocationUpdate }) => {
   }, [watchId])
 
   const startTracking = () => {
+    if (!tripId) {
+      toast.error('No trip selected for location tracking')
+      setError('Trip ID is required')
+      return
+    }
+
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser')
       setError('Geolocation not supported')
@@ -87,6 +91,7 @@ const LocationTracker = ({ tripId, onLocationUpdate }) => {
 
   const updateLocation = async (position) => {
     const locationData = {
+      tripId,
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
       speed: position.coords.speed || 0,
@@ -94,26 +99,28 @@ const LocationTracker = ({ tripId, onLocationUpdate }) => {
       accuracy: position.coords.accuracy
     }
 
-    setCurrentLocation(locationData)
+    setCurrentLocation({
+      latitude: locationData.latitude,
+      longitude: locationData.longitude,
+      speed: locationData.speed,
+      heading: locationData.heading,
+      accuracy: locationData.accuracy
+    })
 
     // Send to backend
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.post(
-        `${API_BASE_URL}/location/update`,
-        {
-          tripId,
-          ...locationData
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      const response = await staffService.updateLocation(locationData)
 
-      if (response.data.success) {
+      if (response?.success) {
         setLastUpdate(new Date())
+        setError(null) // Clear any previous errors
         if (onLocationUpdate) {
-          onLocationUpdate(locationData)
+          onLocationUpdate({
+            latitude: locationData.latitude,
+            longitude: locationData.longitude,
+            speed: locationData.speed,
+            heading: locationData.heading
+          })
         }
       }
     } catch (error) {

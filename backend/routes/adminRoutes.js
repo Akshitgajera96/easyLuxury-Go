@@ -72,6 +72,20 @@ router.get('/users', adminController.getUsersManagement);
  */
 router.patch('/users/:id/toggle-status', adminController.toggleUserStatus);
 
+/**
+ * @route   PATCH /api/v1/admin/users/:id/role
+ * @desc    Update user role
+ * @access  Private/Admin
+ */
+router.patch('/users/:id/role', adminController.updateUserRole);
+
+/**
+ * @route   DELETE /api/v1/admin/users/:id
+ * @desc    Delete user
+ * @access  Private/Admin
+ */
+router.delete('/users/:id', adminController.deleteUser);
+
 // Booking Management Routes
 /**
  * @route   GET /api/v1/admin/bookings

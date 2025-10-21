@@ -35,6 +35,14 @@ class AdminService {
     return apiClient.patch(`/admin/users/${userId}/toggle-status`);
   }
 
+  updateUserRole(userId, role) {
+    return apiClient.patch(`/admin/users/${userId}/role`, { role });
+  }
+
+  deleteUser(userId) {
+    return apiClient.delete(`/admin/users/${userId}`);
+  }
+
   // System health
   getSystemHealth() {
     return apiClient.get('/admin/system/health');
@@ -120,6 +128,36 @@ class AdminService {
 
   deleteNotification(notificationId) {
     return apiClient.delete(`/admin/notifications/${notificationId}`);
+  }
+
+  // Location Monitoring
+  getAllMonitoredBuses() {
+    return apiClient.get('/admin/location-monitor/buses');
+  }
+
+  getMonitoringStats() {
+    return apiClient.get('/admin/location-monitor/stats');
+  }
+
+  getTripLocationStatus(tripId) {
+    return apiClient.get(`/admin/location-monitor/trip/${tripId}`);
+  }
+
+  sendLocationReminder(tripId, customMessage = null) {
+    return apiClient.post(`/admin/location-monitor/remind/${tripId}`, { 
+      message: customMessage 
+    });
+  }
+
+  getActivityLogs(filters = {}) {
+    return apiClient.get('/admin/location-monitor/logs', { params: filters });
+  }
+
+  updateBusStatus(tripId, status, notes = null) {
+    return apiClient.patch(`/admin/location-monitor/status/${tripId}`, { 
+      status, 
+      notes 
+    });
   }
 }
 

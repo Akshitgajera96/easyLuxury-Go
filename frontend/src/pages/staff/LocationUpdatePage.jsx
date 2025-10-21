@@ -9,10 +9,9 @@ import { Bus, Route as RouteIcon, MapPin, Clock, Users } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import LocationTracker from '../../components/staff/LocationTracker'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
-import axios from 'axios'
+import staffService from '../../services/staffService'
+import tripService from '../../services/tripService'
 import { toast } from 'react-hot-toast'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const LocationUpdatePage = () => {
   const { user } = useAuth()
@@ -27,28 +26,22 @@ const LocationUpdatePage = () => {
   const fetchAssignedTrip = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      
       // First, get staff details to find assigned bus
-      const staffResponse = await axios.get(`${API_BASE_URL}/staff/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const staffResponse = await staffService.getMyProfile()
 
-      if (staffResponse.data.success && staffResponse.data.data.staff?.assignedBus) {
-        const busId = staffResponse.data.data.staff.assignedBus
+      if (staffResponse?.success && staffResponse.data?.staff?.assignedBus) {
+        const busId = staffResponse.data.staff.assignedBus
 
         // Find active trip for this bus
-        const tripsResponse = await axios.get(`${API_BASE_URL}/trips`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        const tripsResponse = await tripService.getAllTrips()
 
-        if (tripsResponse.data.success) {
+        if (tripsResponse?.success && tripsResponse.data?.trips) {
           const now = new Date()
-          const activeTrip = tripsResponse.data.data.trips.find(trip => {
+          const activeTrip = tripsResponse.data.trips.find(trip => {
             const departure = new Date(trip.departureDateTime)
             const arrival = new Date(trip.arrivalDateTime)
             return (
-              trip.bus._id === busId &&
+              (trip.bus?._id === busId || trip.bus?.id === busId) &&
               departure <= now &&
               arrival >= now &&
               trip.isActive
@@ -59,13 +52,15 @@ const LocationUpdatePage = () => {
             setAssignedTrip(activeTrip)
             fetchTripDetails(activeTrip._id)
           } else {
-            toast.error('No active trip found for your bus')
+            toast.error('No active trip found for your bus', { duration: 4000 })
           }
         }
+      } else {
+        toast.error('No bus assigned to your profile', { duration: 4000 })
       }
     } catch (error) {
       console.error('Failed to fetch assigned trip:', error)
-      toast.error('Failed to load trip information')
+      toast.error('Failed to load trip information. Please try again.', { duration: 4000 })
     } finally {
       setLoading(false)
     }
@@ -73,13 +68,10 @@ const LocationUpdatePage = () => {
 
   const fetchTripDetails = async (tripId) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_BASE_URL}/trips/${tripId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await tripService.getTripById(tripId)
 
-      if (response.data.success) {
-        setTripDetails(response.data.data.trip)
+      if (response?.success && response.data?.trip) {
+        setTripDetails(response.data.trip)
       }
     } catch (error) {
       console.error('Failed to fetch trip details:', error)

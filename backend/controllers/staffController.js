@@ -171,6 +171,25 @@ const assignBusToStaff = async (req, res, next) => {
   }
 };
 
+/**
+ * Get current logged-in staff member's details
+ * GET /api/v1/staff/me
+ */
+const getCurrentStaff = async (req, res, next) => {
+  try {
+    // req.user is set by protect middleware
+    const staff = await staffService.getStaffById(req.user._id);
+
+    res.status(200).json({
+      success: true,
+      data: { staff },
+      message: 'Staff profile fetched successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createStaff,
   // loginStaff - REMOVED: Use authController.staffLogin instead
@@ -180,5 +199,6 @@ module.exports = {
   deleteStaff,
   toggleStaffStatus,
   getAvailableDrivers,
-  assignBusToStaff
+  assignBusToStaff,
+  getCurrentStaff
 };

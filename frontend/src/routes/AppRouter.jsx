@@ -32,6 +32,7 @@ import ManageBookingsPage from '../pages/admin/ManageBookingsPage'
 import ManageUsersPage from '../pages/admin/ManageUsersPage'
 import AnalyticsPage from '../pages/admin/AnalyticsPage'
 import LiveTrackingPage from '../pages/admin/LiveTrackingPage'
+import BusLocationMonitorPage from '../pages/admin/BusLocationMonitorPage'
 
 // Staff Pages
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
@@ -230,6 +231,16 @@ const AppRouter = () => {
           <AdminRoute>
             <AdminLayout>
               <LiveTrackingPage />
+            </AdminLayout>
+          </AdminRoute>
+        } 
+      />
+      <Route 
+        path="/admin/location-monitor" 
+        element={
+          <AdminRoute>
+            <AdminLayout>
+              <BusLocationMonitorPage />
             </AdminLayout>
           </AdminRoute>
         } 

@@ -20,6 +20,13 @@ router.use(protect);
 
 // Staff accessible routes (both admin and staff can access)
 /**
+ * @route   GET /api/v1/staff/me
+ * @desc    Get current logged-in staff member's profile
+ * @access  Private/Staff/Admin
+ */
+router.get('/me', authorize(ROLES.ADMIN, ROLES.STAFF), staffController.getCurrentStaff);
+
+/**
  * @route   GET /api/v1/staff/bookings
  * @desc    Get all bookings for staff management
  * @access  Private/Admin/Staff

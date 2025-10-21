@@ -281,6 +281,9 @@ const ManageTripsPage = () => {
                       <div className="text-sm text-gray-500">
                         {trip.bus?.operator || 'N/A'}
                       </div>
+                      <div className="text-xs text-gray-400">
+                        <span className="capitalize">{trip.bus?.busType || trip.bus?.seatType || 'N/A'}</span>
+                      </div>
                       <div className="text-xs text-gray-400 mt-1">
                         Driver: {trip.driver?.name || 'N/A'}
                       </div>
@@ -397,7 +400,7 @@ const ManageTripsPage = () => {
                       )}
                       {buses.map(bus => (
                         <option key={bus._id || bus.id} value={bus._id || bus.id}>
-                          {bus.busNumber} - {bus.operator} ({bus.seatType || 'N/A'})
+                          {bus.busNumber} - {bus.operator} ({bus.busType || bus.seatType || 'N/A'})
                         </option>
                       ))}
                     </select>

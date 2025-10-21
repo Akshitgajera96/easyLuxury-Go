@@ -59,6 +59,26 @@ class StaffService {
   updateBookingStatus(bookingId, status) {
     return apiClient.patch(`/staff/bookings/${bookingId}/status`, { status });
   }
+
+  // Get current logged-in staff member's profile
+  getMyProfile() {
+    return apiClient.get('/staff/me');
+  }
+
+  // Update location for a trip (Staff accessible)
+  updateLocation(locationData) {
+    return apiClient.post('/location/update', locationData);
+  }
+
+  // Get location for a trip
+  getLocation(tripId) {
+    return apiClient.get(`/location/${tripId}`);
+  }
+
+  // Get location history for a trip
+  getLocationHistory(tripId) {
+    return apiClient.get(`/location/${tripId}/history`);
+  }
 }
 
 export default new StaffService();

@@ -266,7 +266,10 @@ const ReviewsPage = () => {
                             {review.trip.route.from} → {review.trip.route.to}
                           </h3>
                           <p className="text-sm text-gray-600">
-                            {review.trip.bus.operator} � {formatDateTime(review.trip.departureDateTime)}
+                            {review.trip.bus.operator} • {formatDateTime(review.trip.departureDateTime)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {review.trip.bus.busNumber} • <span className="capitalize">{review.trip.bus.busType}</span>
                           </p>
                         </div>
                         <div className="text-right">
@@ -338,10 +341,13 @@ const ReviewsPage = () => {
                           {booking.trip.route.from} → {booking.trip.route.to}
                         </h4>
                         <p className="text-sm text-gray-600">
-                          {booking.trip.bus.operator} � {formatDateTime(booking.trip.departureDateTime)}
+                          {booking.trip.bus.operator} • {formatDateTime(booking.trip.departureDateTime)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {booking.trip.bus.busNumber} • <span className="capitalize">{booking.trip.bus.busType}</span>
                         </p>
                         <p className="text-sm text-gray-500">
-                          PNR: {booking.pnr} � Completed on {formatDateTime(booking.completedAt)}
+                          PNR: {booking.pnr} • Completed on {formatDateTime(booking.completedAt)}
                         </p>
                       </div>
                       <button

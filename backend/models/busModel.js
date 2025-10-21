@@ -152,7 +152,9 @@ const busSchema = new mongoose.Schema({
     default: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 // Index for better query performance
@@ -168,6 +170,11 @@ busSchema.virtual('availableAmenities').get(function() {
   if (this.hasWifi) amenities.push(AMENITIES.WIFI);
   if (this.hasCharging) amenities.push(AMENITIES.CHARGING_POINT);
   return [...amenities, ...this.amenities];
+});
+
+// Virtual for busType (alias for seatType for frontend compatibility)
+busSchema.virtual('busType').get(function() {
+  return this.seatType;
 });
 
 // Method to check if bus has specific amenity

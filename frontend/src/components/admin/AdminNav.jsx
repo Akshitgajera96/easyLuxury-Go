@@ -4,7 +4,7 @@
 
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Bus, Route, Calendar, ClipboardList, Users, BarChart3, MapPin } from 'lucide-react'
+import { LayoutDashboard, Bus, Route, Calendar, ClipboardList, Users, BarChart3, MapPin, Navigation } from 'lucide-react'
 
 const AdminNav = () => {
   const location = useLocation()
@@ -57,6 +57,12 @@ const AdminNav = () => {
       label: 'Live Tracking',
       icon: MapPin,
       description: 'Track all buses'
+    },
+    {
+      path: '/admin/location-monitor',
+      label: 'Location Monitor',
+      icon: Navigation,
+      description: 'Monitor bus status'
     }
   ]
 
