@@ -1,11 +1,12 @@
 /**
- * Live Bus Map Component using MapTiler/MapBox
+ * Live Bus Map Component using MapTiler
  * Displays real-time bus location tracking
  */
 
 import React, { useState, useEffect, useRef } from 'react'
 import Map, { Marker, Popup, Source, Layer } from 'react-map-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { motion } from 'framer-motion'
 
 const LiveBusMap = ({ tripId, busLocation, route }) => {
@@ -16,6 +17,10 @@ const LiveBusMap = ({ tripId, busLocation, route }) => {
   })
   const [showPopup, setShowPopup] = useState(false)
   const mapRef = useRef()
+
+  // Check if MapTiler API key is configured
+  const hasMapTilerKey = import.meta.env.VITE_MAPTILER_API_KEY && 
+    import.meta.env.VITE_MAPTILER_API_KEY !== 'your_maptiler_api_key_here'
 
   // Update viewport when bus location changes
   useEffect(() => {
@@ -65,6 +70,56 @@ const LiveBusMap = ({ tripId, busLocation, route }) => {
     })
   }
 
+  // Show setup instructions if MapTiler key is not configured
+  if (!hasMapTilerKey) {
+    return (
+      <div className="relative w-full h-full rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="max-w-md p-8 bg-white rounded-xl shadow-lg">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 text-center mb-3">Map Configuration Required</h3>
+          <p className="text-gray-600 text-center mb-4 text-sm">
+            To enable live bus tracking, add your MapTiler API key:
+          </p>
+          <div className="space-y-3 text-sm">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4 rounded-lg">
+              <p className="font-semibold text-gray-900 mb-2 flex items-center">
+                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">1</span>
+                Get FREE MapTiler API Key
+              </p>
+              <p className="text-xs text-gray-600 mb-2">✓ No payment method required</p>
+              <a 
+                href="https://www.maptiler.com/cloud/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Get API Key →
+              </a>
+            </div>
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-4 rounded-lg">
+              <p className="font-semibold text-gray-900 mb-2 flex items-center">
+                <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">2</span>
+                Add to frontend/.env
+              </p>
+              <code className="block text-xs bg-gray-900 text-green-400 p-3 rounded overflow-x-auto font-mono">
+                VITE_MAPTILER_API_KEY=your_key_here
+              </code>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+              <p className="text-xs text-gray-700">
+                <strong>⚠️ Important:</strong> Restart your dev server after adding the key!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden">
       <Map
@@ -72,8 +127,9 @@ const LiveBusMap = ({ tripId, busLocation, route }) => {
         {...viewport}
         onMove={evt => setViewport(evt.viewState)}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={`https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY || 'pk.eyJ1IjoiZWFzeWx1eHVyeSIsImEiOiJjbTBhYmMxMjMifQ.demo'}`}
-        mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
+        mapStyle={`https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`}
+        mapLib={maplibregl}
+        attributionControl={true}
       >
         {/* Route line */}
         {routeData && (

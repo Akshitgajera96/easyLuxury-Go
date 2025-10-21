@@ -13,6 +13,7 @@ const socketIo = require('socket.io');
 const corsOptions = require('./config/corsOptions');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
+const { validateEnv } = require('./config/validateEnv');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -33,10 +34,31 @@ const paymentRoutes = require('./routes/paymentRoutes');
 
 require('dotenv').config();
 
+// Validate environment variables before starting server
+console.log('\n🔍 Validating environment variables...');
+validateEnv();
+
 const app = express();
 const server = http.createServer(app);
+
+// Socket.IO configuration with proper CORS for WebSocket
 const io = socketIo(server, {
-  cors: corsOptions
+  cors: {
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173',
+      process.env.FRONTEND_URL
+    ].filter(Boolean),
+    methods: ['GET', 'POST'],
+    credentials: true,
+    allowEIO3: true // Allow older Engine.IO clients
+  },
+  transports: ['websocket', 'polling'], // Enable both transports
+  allowUpgrades: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Connect to MongoDB
@@ -96,8 +118,24 @@ if (process.env.NODE_ENV === 'development') {
 
 // Socket.IO setup
 app.set('io', io);
+
+// Add Socket.IO connection logging
+io.on('connection', (socket) => {
+  console.log('✅ Socket.IO client connected:', socket.id);
+  
+  socket.on('disconnect', (reason) => {
+    console.log('❌ Socket.IO client disconnected:', socket.id, 'Reason:', reason);
+  });
+  
+  socket.on('error', (error) => {
+    console.error('❌ Socket.IO error:', error);
+  });
+});
+
 const bookingSocket = require('./sockets/bookingSocket');
 bookingSocket.initializeBookingSocket(io);
+
+console.log('✅ Socket.IO initialized and ready');
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);

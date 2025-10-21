@@ -24,24 +24,43 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (isAuthenticated && token) {
-      // Initialize socket connection with auth token
+      // Initialize socket connection with improved config
       const newSocket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000', {
         auth: {
           token: token
         },
-        transports: ['websocket', 'polling']
+        transports: ['polling', 'websocket'], // Try polling first, then upgrade to websocket
+        upgrade: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        autoConnect: true
       });
 
       newSocket.on('connect', () => {
         setIsConnected(true);
       });
 
-      newSocket.on('disconnect', () => {
+      newSocket.on('disconnect', (reason) => {
         setIsConnected(false);
       });
 
       newSocket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
+        setIsConnected(false);
+        // Don't throw error - socket will retry
+      });
+
+      newSocket.on('reconnect_attempt', (attemptNumber) => {
+        // Reconnecting...
+      });
+
+      newSocket.on('reconnect', (attemptNumber) => {
+        setIsConnected(true);
+      });
+
+      newSocket.on('reconnect_failed', () => {
         setIsConnected(false);
       });
 
@@ -86,6 +105,25 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
+  // Helper hook to subscribe to seat updates
+  const useSeatUpdate = (callback) => {
+    React.useEffect(() => {
+      if (socket) {
+        socket.on('seat-status-update', callback);
+        socket.on('seats-locked', callback);
+        socket.on('seats-unlocked', callback);
+        socket.on('seats-booked', callback);
+        
+        return () => {
+          socket.off('seat-status-update', callback);
+          socket.off('seats-locked', callback);
+          socket.off('seats-unlocked', callback);
+          socket.off('seats-booked', callback);
+        };
+      }
+    }, [socket, callback]);
+  };
+
   const value = {
     socket,
     isConnected,
@@ -93,6 +131,7 @@ export const SocketProvider = ({ children }) => {
     leaveTripRoom,
     lockSeats,
     releaseSeats,
+    useSeatUpdate,
   };
 
   return (

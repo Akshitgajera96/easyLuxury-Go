@@ -127,9 +127,9 @@ const NotificationBell = () => {
       case 'staff_registration':
         return <div className="w-5 h-5 bg-black40 text-white rounded-full flex items-center justify-center text-xs font-bold">+</div>
       case 'staff_approved':
-        return <div className="w-5 h-5 bg-gradient-to-r from-success-light to-success shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-white rounded-full flex items-center justify-center text-xs font-bold">?</div>
+        return <div className="w-5 h-5 bg-gradient-to-r from-success-light to-success shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-white rounded-full flex items-center justify-center text-xs font-bold">✓</div>
       case 'staff_rejected':
-        return <div className="w-5 h-5 bg-gradient-to-r from-error-light to-error shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-white rounded-full flex items-center justify-center text-xs font-bold">�</div>
+        return <div className="w-5 h-5 bg-gradient-to-r from-error-light to-error shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-white rounded-full flex items-center justify-center text-xs font-bold">×</div>
       default:
         return <div className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">!</div>
     }
@@ -169,13 +169,13 @@ const NotificationBell = () => {
             <h3 className="text-lg font-semibold text-gray-900">
               Notifications
               {unreadCount > 0 && (
-                <span className="ml-2 textbg-accent text-gray-900">({unreadCount} new)</span>
+                <span className="ml-2 text-accent">({unreadCount} new)</span>
               )}
             </h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="textbg-accent text-gray-900 hover:text-accent font-medium"
+                className="text-accent hover:text-black40 font-medium text-sm"
               >
                 Mark all read
               </button>
@@ -209,10 +209,10 @@ const NotificationBell = () => {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-sm font-semibold text-gray-900 break-words">
                           {notification.title}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-gray-600 mt-1 break-words whitespace-normal">
                           {notification.message}
                         </p>
                         {notification.staffName && (
@@ -253,9 +253,9 @@ const NotificationBell = () => {
             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
               <a
                 href="/admin/staff-pending"
-                className="textbg-accent text-gray-900 hover:text-black40 font-medium block text-center"
+                className="text-accent hover:text-black40 font-medium block text-center"
               >
-                View all staff requests ?
+                View all staff requests →
               </a>
             </div>
           )}

@@ -100,6 +100,13 @@ const TripPage = () => {
   }
 
   const filteredTrips = trips.filter(trip => {
+    // Filter out trips that have already departed
+    const departureTime = new Date(trip.departureDateTime)
+    const now = new Date()
+    if (departureTime <= now) {
+      return false
+    }
+
     // Apply user-selected filters
     if (filters.busType !== 'all' && trip.bus?.seatType !== filters.busType) {
       return false

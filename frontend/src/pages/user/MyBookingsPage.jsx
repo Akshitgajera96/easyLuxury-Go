@@ -9,6 +9,7 @@ import bookingService from '../../services/bookingService'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 import { toast } from 'react-hot-toast'
+import { downloadTicketPDF, shareTicket } from '../../utils/pdfGenerator'
 
 const MyBookingsPage = () => {
   const { user } = useAuth()
@@ -31,7 +32,7 @@ const MyBookingsPage = () => {
             id: 'BK001',
             pnr: 'EL20240120001',
             trip: {
-              route: { from: 'Mumbai', to: 'Goa' },
+              route: { sourceCity: 'Mumbai', destinationCity: 'Goa' },
               departureDateTime: '2024-01-25T08:00:00',
               arrivalDateTime: '2024-01-25T20:00:00',
               bus: { 
@@ -41,17 +42,16 @@ const MyBookingsPage = () => {
                 amenities: ['wifi', 'ac', 'charging', 'blanket']
               }
             },
-            seats: ['U1-1', 'U1-2'],
-            passengers: [
-              { name: 'Raj Sharma', age: 28, gender: 'male' },
-              { name: 'Priya Sharma', age: 26, gender: 'female' }
+            seats: [
+              { seatNumber: 'U1-1', passengerName: 'Raj Sharma', passengerAge: 28, passengerGender: 'male' },
+              { seatNumber: 'U1-2', passengerName: 'Priya Sharma', passengerAge: 26, passengerGender: 'female' }
             ],
             totalAmount: 2832, // 2400 + 18% tax + 30 convenience fee
             bookingStatus: 'confirmed',
             paymentStatus: 'completed',
             paymentMethod: 'wallet',
-            boardingPoint: 'Mumbai Central Bus Stand',
-            droppingPoint: 'Goa Bus Terminal',
+            boardingPoint: { terminal: 'Mumbai Central', address: 'Mumbai Central Bus Stand', time: '08:00' },
+            droppingPoint: { terminal: 'Goa Terminal', address: 'Goa Bus Terminal', time: '20:00' },
             createdAt: '2024-01-15T10:30:00',
             cancellationTime: null,
             refundAmount: null
@@ -60,7 +60,7 @@ const MyBookingsPage = () => {
             id: 'BK002',
             pnr: 'EL20240115002',
             trip: {
-              route: { from: 'Delhi', to: 'Jaipur' },
+              route: { sourceCity: 'Delhi', destinationCity: 'Jaipur' },
               departureDateTime: '2024-01-18T10:00:00',
               arrivalDateTime: '2024-01-18T16:00:00',
               bus: { 
@@ -70,16 +70,15 @@ const MyBookingsPage = () => {
                 amenities: ['ac', 'charging', 'blanket']
               }
             },
-            seats: ['L2-1'],
-            passengers: [
-              { name: 'Raj Sharma', age: 28, gender: 'male' }
+            seats: [
+              { seatNumber: 'L2-1', passengerName: 'Raj Sharma', passengerAge: 28, passengerGender: 'male' }
             ],
             totalAmount: 944, // 800 + 18% tax + 30 convenience fee
             bookingStatus: 'completed',
             paymentStatus: 'completed',
             paymentMethod: 'card',
-            boardingPoint: 'Delhi ISBT',
-            droppingPoint: 'Jaipur Bus Stand',
+            boardingPoint: { terminal: 'Delhi ISBT', address: 'Delhi ISBT, Kashmere Gate', time: '10:00' },
+            droppingPoint: { terminal: 'Jaipur Stand', address: 'Jaipur Bus Stand, Sindhi Camp', time: '16:00' },
             createdAt: '2024-01-10T14:20:00',
             cancellationTime: null,
             refundAmount: null
@@ -88,7 +87,7 @@ const MyBookingsPage = () => {
             id: 'BK003',
             pnr: 'EL20240110003',
             trip: {
-              route: { from: 'Bangalore', to: 'Chennai' },
+              route: { sourceCity: 'Bangalore', destinationCity: 'Chennai' },
               departureDateTime: '2024-01-12T14:00:00',
               arrivalDateTime: '2024-01-12T20:00:00',
               bus: { 
@@ -98,18 +97,17 @@ const MyBookingsPage = () => {
                 amenities: ['ac', 'charging']
               }
             },
-            seats: ['S1', 'S2', 'S3'],
-            passengers: [
-              { name: 'Raj Sharma', age: 28, gender: 'male' },
-              { name: 'Amit Kumar', age: 30, gender: 'male' },
-              { name: 'Neha Singh', age: 25, gender: 'female' }
+            seats: [
+              { seatNumber: 'S1', passengerName: 'Raj Sharma', passengerAge: 28, passengerGender: 'male' },
+              { seatNumber: 'S2', passengerName: 'Amit Kumar', passengerAge: 30, passengerGender: 'male' },
+              { seatNumber: 'S3', passengerName: 'Neha Singh', passengerAge: 25, passengerGender: 'female' }
             ],
             totalAmount: 2124, // 1800 + 18% tax + 30 convenience fee
             bookingStatus: 'cancelled',
             paymentStatus: 'refunded',
             paymentMethod: 'upi',
-            boardingPoint: 'Bangalore Central',
-            droppingPoint: 'Chennai Mofussil',
+            boardingPoint: { terminal: 'Bangalore Central', address: 'Bangalore Central Bus Station', time: '14:00' },
+            droppingPoint: { terminal: 'Chennai Mofussil', address: 'Chennai Mofussil Bus Terminus', time: '20:00' },
             createdAt: '2024-01-05T09:15:00',
             cancellationTime: '2024-01-11T16:30:00',
             refundAmount: 1912
@@ -220,71 +218,30 @@ const MyBookingsPage = () => {
     return booking.bookingStatus === 'confirmed' && isUpcoming(booking.trip.departureDateTime)
   }
 
-  const handleDownloadTicket = (booking) => {
-    // Generate ticket content
-    const ticketContent = `
-==============================================
-      EASYLUXURY GO - BUS TICKET
-==============================================
+  const handleDownloadTicket = async (booking) => {
+    try {
+      downloadTicketPDF(booking)
+      toast.success('Ticket downloaded successfully!', { icon: '📥' })
+    } catch (error) {
+      console.error('Error downloading ticket:', error)
+      toast.error('Failed to download ticket')
+    }
+  }
 
-PNR Number: ${booking.pnr}
-Booking ID: ${booking.id}
-Booking Date: ${formatDateTime(booking.createdAt)}
-
-----------------------------------------------
-TRIP DETAILS
-----------------------------------------------
-Route: ${booking.trip.route.from} ? ${booking.trip.route.to}
-Departure: ${formatDateTime(booking.trip.departureDateTime)}
-Arrival: ${formatDateTime(booking.trip.arrivalDateTime)}
-
-Bus Number: ${booking.trip.bus.busNumber}
-Operator: ${booking.trip.bus.operator}
-Bus Type: ${booking.trip.bus.busType.toUpperCase()}
-
-----------------------------------------------
-PASSENGER DETAILS
-----------------------------------------------
-${booking.passengers.map((p, i) => `Seat ${booking.seats[i]}: ${p.name}, ${p.age} yrs, ${p.gender}`).join('\n')}
-
-----------------------------------------------
-BOARDING & DROP POINTS
-----------------------------------------------
-Boarding: ${booking.boardingPoint}
-Dropping: ${booking.droppingPoint}
-
-----------------------------------------------
-PAYMENT DETAILS
-----------------------------------------------
-Total Amount: ?${booking.totalAmount}
-Payment Method: ${booking.paymentMethod.toUpperCase()}
-Payment Status: ${booking.paymentStatus.toUpperCase()}
-Booking Status: ${booking.bookingStatus.toUpperCase()}
-
-----------------------------------------------
-AMENITIES
-----------------------------------------------
-${booking.trip.bus.amenities.map(a => `� ${a.toUpperCase()}`).join('\n')}
-
-==============================================
-      Thank you for choosing EasyLuxury Go!
-      Have a safe journey!
-==============================================
-
-Customer Support: support@easyluxurygo.com
-Website: www.easyluxurygo.com
-    `
-
-    // Create and download file
-    const blob = new Blob([ticketContent], { type: 'text/plain' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `EasyLuxuryGo_Ticket_${booking.pnr}.txt`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+  const handleShareTicket = async (booking) => {
+    try {
+      const result = await shareTicket(booking)
+      
+      if (result.method === 'native') {
+        // User shared via native share
+      } else {
+        // Fallback to download
+        toast.success('Ticket downloaded! You can share it manually.', { icon: '📥' })
+      }
+    } catch (error) {
+      console.error('Error sharing ticket:', error)
+      toast.error('Failed to share ticket')
+    }
   }
 
   const filteredBookings = bookings.filter(booking => {
@@ -398,7 +355,7 @@ Website: www.easyluxurygo.com
         <div className="space-y-6">
           {filteredBookings.map((booking, index) => (
             <motion.div
-              key={booking.id}
+              key={booking._id || booking.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -410,7 +367,7 @@ Website: www.easyluxurygo.com
                   <div className="flex items-center space-x-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {booking.trip.route.from} → {booking.trip.route.to}
+                        {booking.trip.route.sourceCity} → {booking.trip.route.destinationCity}
                       </h3>
                       <p className="text-sm text-gray-600">
                         PNR: {booking.pnr} � Booked on {formatDateTime(booking.createdAt)}
@@ -462,19 +419,19 @@ Website: www.easyluxurygo.com
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Passenger Details</h4>
                     <div className="space-y-2">
-                      {booking.passengers.map((passenger, idx) => (
-                        <div key={idx} className="flex justify-between text-sm">
-                          <span className="text-gray-900 font-medium">{passenger.name}</span>
+                      {booking.seats?.map((seat, idx) => (
+                        <div key={`${booking._id || booking.id}-${seat.seatNumber}`} className="flex justify-between text-sm">
+                          <span className="text-gray-900 font-medium">{seat.passengerName}</span>
                           <span className="text-gray-600">
-                            {passenger.age} yrs � {passenger.gender} � {booking.seats[idx]}
+                            {seat.passengerAge} yrs • {seat.passengerGender} • {seat.seatNumber}
                           </span>
                         </div>
                       ))}
                     </div>
                     <div className="mt-4">
                       <h5 className="font-medium text-gray-900 mb-2">Boarding & Drop</h5>
-                      <p className="text-sm text-gray-600">{booking.boardingPoint}</p>
-                      <p className="text-sm text-gray-600">{booking.droppingPoint}</p>
+                      <p className="text-sm text-gray-600">📍 {booking.boardingPoint?.address || booking.boardingPoint} ({booking.boardingPoint?.time || 'TBD'})</p>
+                      <p className="text-sm text-gray-600">📍 {booking.droppingPoint?.address || booking.droppingPoint} ({booking.droppingPoint?.time || 'TBD'})</p>
                     </div>
                   </div>
 
@@ -512,24 +469,30 @@ Website: www.easyluxurygo.com
                       {/* Action Buttons */}
                       <div className="flex flex-col space-y-2 pt-2">
                         <div className="flex space-x-2">
-                          {canCancel(booking) && (
-                            <button
-                              onClick={() => {
-                                setSelectedBooking(booking)
-                                setShowCancelDialog(true)
-                              }}
-                              className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors text-sm"
-                            >
-                              Cancel Booking
-                            </button>
-                          )}
                           <button 
                             onClick={() => handleDownloadTicket(booking)}
-                            className="flex-1 bg-accent/20 text-black40 py-2 rounded-lg font-medium hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300/30 transition-colors text-sm"
+                            className="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg font-medium hover:bg-blue-200 transition-colors text-sm"
                           >
-                            Download Ticket
+                            Download
+                          </button>
+                          <button 
+                            onClick={() => handleShareTicket(booking)}
+                            className="flex-1 bg-green-100 text-green-700 py-2 rounded-lg font-medium hover:bg-green-200 transition-colors text-sm"
+                          >
+                            Share
                           </button>
                         </div>
+                        {canCancel(booking) && (
+                          <button
+                            onClick={() => {
+                              setSelectedBooking(booking)
+                              setShowCancelDialog(true)
+                            }}
+                            className="w-full bg-red-100 text-red-700 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors text-sm"
+                          >
+                            Cancel Booking
+                          </button>
+                        )}
                         {/* Track Bus Button - Only show for confirmed/ongoing trips */}
                         {(booking.bookingStatus === 'confirmed' || booking.bookingStatus === 'ongoing') && isUpcoming(booking.trip.departureDateTime) && (
                           <button
@@ -548,9 +511,9 @@ Website: www.easyluxurygo.com
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h4 className="font-semibold text-gray-900 mb-2">Bus Amenities</h4>
                   <div className="flex flex-wrap gap-2">
-                    {booking.trip.bus.amenities.map(amenity => (
+                    {booking.trip.bus?.amenities?.map((amenity, idx) => (
                       <span
-                        key={amenity}
+                        key={`${booking._id || booking.id}-amenity-${idx}`}
                         className="inline-flex items-center space-x-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700"
                       >
                         <span className="capitalize">{amenity}</span>
@@ -591,7 +554,7 @@ Website: www.easyluxurygo.com
       <ConfirmDialog
         isOpen={showCancelDialog}
         title="Cancel Booking"
-        message={`Are you sure you want to cancel your booking from ${selectedBooking?.trip.route.from} to ${selectedBooking?.trip.route.to}? A cancellation fee may apply.`}
+        message={`Are you sure you want to cancel your booking from ${selectedBooking?.trip.route.sourceCity} to ${selectedBooking?.trip.route.destinationCity}? A cancellation fee may apply.`}
         confirmText={loading ? "Cancelling..." : "Cancel Booking"}
         cancelText="Keep Booking"
         onConfirm={handleCancelBooking}

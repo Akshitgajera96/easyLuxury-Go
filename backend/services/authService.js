@@ -31,15 +31,11 @@ const registerUser = async (userData) => {
     role: role || 'customer'
   });
 
-  // Generate token with email
-  const token = generateToken(user._id, user.role, user.email);
-
-  // Return user without password
+  // Return user without password (no token on registration)
   const userResponse = await User.findById(user._id).select('-password');
 
   return {
-    user: userResponse,
-    token
+    user: userResponse
   };
 };
 

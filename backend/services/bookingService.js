@@ -9,6 +9,7 @@ const Trip = require('../models/tripModel');
 const User = require('../models/userModel');
 const { BOOKING_STATUS, PAYMENT_STATUS, PAYMENT_METHODS } = require('../constants/enums');
 const MESSAGES = require('../constants/messages');
+const AppError = require('../utils/AppError');
 
 /**
  * Create a new booking
@@ -30,13 +31,17 @@ const createBooking = async (bookingData, userId) => {
     .populate('bus')
     .populate('route');
   
-  if (!trip || !trip.isActive) {
-    throw new Error('Trip not found or inactive');
+  if (!trip) {
+    throw new AppError('Trip not found', 404);
+  }
+
+  if (!trip.isActive) {
+    throw new AppError('Trip is inactive', 400);
   }
 
   // Check if trip is in future
   if (new Date(trip.departureDateTime) <= new Date()) {
-    throw new Error('Cannot book a trip that has already departed');
+    throw new AppError('Cannot book a trip that has already departed', 400);
   }
 
   // Validate seats availability
@@ -45,18 +50,18 @@ const createBooking = async (bookingData, userId) => {
   );
 
   if (unavailableSeats.length > 0) {
-    throw new Error(`Seats ${unavailableSeats.join(', ')} are not available`);
+    throw new AppError(`Seats ${unavailableSeats.join(', ')} are not available`, 400);
   }
 
   // Validate user exists
   const user = await User.findById(userId);
   if (!user) {
-    throw new Error(MESSAGES.USER.USER_NOT_FOUND);
+    throw new AppError(MESSAGES.USER.USER_NOT_FOUND, 404);
   }
 
   // Calculate total amount
   const seatCount = seats.length;
-  const baseAmount = trip.currentFare * seatCount;
+  const baseAmount = trip.baseFare * seatCount;
   let discountAmount = 0;
 
   // Apply promo code discount if provided
@@ -65,11 +70,21 @@ const createBooking = async (bookingData, userId) => {
     discountAmount = Math.min(baseAmount * 0.1, 200); // 10% discount, max ₹200
   }
 
-  const totalAmount = baseAmount - discountAmount;
+  // Calculate GST (18%) and convenience fee
+  const gstAmount = Math.round(baseAmount * 0.18); // 18% GST
+  const convenienceFee = 30; // Fixed convenience fee
+
+  // Total = Base - Discount + GST + Convenience Fee
+  const totalAmount = baseAmount - discountAmount + gstAmount + convenienceFee;
 
   // Check wallet balance if payment method is wallet
-  if (paymentMethod === PAYMENT_METHODS.WALLET && !user.hasSufficientBalance(totalAmount)) {
-    throw new Error(MESSAGES.USER.INSUFFICIENT_BALANCE);
+  if (paymentMethod === PAYMENT_METHODS.WALLET) {
+    if (!user.hasSufficientBalance(totalAmount)) {
+      throw new AppError(
+        `Insufficient wallet balance. Available: ₹${user.walletBalance}, Required: ₹${totalAmount}`,
+        400
+      );
+    }
   }
 
   // Create booking - map passenger info correctly from array
@@ -89,13 +104,13 @@ const createBooking = async (bookingData, userId) => {
       discountAmount
     } : undefined,
     boardingPoint: {
-      terminal: trip.route.source.terminal,
-      address: `${trip.route.source.city}, ${trip.route.source.state}`,
+      terminal: trip.route.sourceCity,
+      address: trip.route.sourceCity,
       time: trip.departureDateTime.toTimeString().split(' ')[0]
     },
     droppingPoint: {
-      terminal: trip.route.destination.terminal,
-      address: `${trip.route.destination.city}, ${trip.route.destination.state}`,
+      terminal: trip.route.destinationCity,
+      address: trip.route.destinationCity,
       time: trip.arrivalDateTime.toTimeString().split(' ')[0]
     }
   });
@@ -112,10 +127,23 @@ const createBooking = async (bookingData, userId) => {
     booking.bookingStatus = BOOKING_STATUS.PENDING;
   }
 
-  await booking.save();
+  // Save booking
+  try {
+    await booking.save();
+  } catch (error) {
+    console.error('❌ Error saving booking:', error.message);
+    throw new AppError(`Failed to create booking: ${error.message}`, 400);
+  }
 
   // Book seats in trip
-  await trip.bookSeats(seats, passengerInfo, booking._id);
+  try {
+    await trip.bookSeats(seats, passengerInfo, booking._id);
+  } catch (error) {
+    console.error('❌ Error booking seats in trip:', error.message);
+    // Rollback: delete the booking if seat booking fails
+    await Booking.findByIdAndDelete(booking._id);
+    throw new AppError(`Failed to book seats: ${error.message}`, 400);
+  }
 
   // Populate references for response
   await booking.populate('trip');
@@ -166,15 +194,15 @@ const cancelBooking = async (bookingId, userId, reason) => {
   }).populate('trip');
 
   if (!booking) {
-    throw new Error('Booking not found');
+    throw new AppError('Booking not found', 404);
   }
 
   if (booking.bookingStatus === BOOKING_STATUS.CANCELLED) {
-    throw new Error('Booking is already cancelled');
+    throw new AppError('Booking is already cancelled', 400);
   }
 
   if (booking.bookingStatus === BOOKING_STATUS.COMPLETED) {
-    throw new Error('Cannot cancel a completed trip');
+    throw new AppError('Cannot cancel a completed trip', 400);
   }
 
   // Calculate hours before departure
@@ -183,7 +211,7 @@ const cancelBooking = async (bookingId, userId, reason) => {
   const hoursBeforeDeparture = (departureTime - now) / (1000 * 60 * 60);
 
   if (hoursBeforeDeparture < 0) {
-    throw new Error('Cannot cancel a trip that has already departed');
+    throw new AppError('Cannot cancel a trip that has already departed', 400);
   }
 
   // Cancel booking and process refund
@@ -233,7 +261,7 @@ const getBookingById = async (bookingId, userId) => {
   });
 
   if (!booking) {
-    throw new Error('Booking not found');
+    throw new AppError('Booking not found', 404);
   }
 
   return booking;

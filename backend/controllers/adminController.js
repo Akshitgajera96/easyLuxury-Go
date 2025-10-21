@@ -512,11 +512,7 @@ const deleteStaff = async (req, res, next) => {
  */
 const getPendingStaff = async (req, res, next) => {
   try {
-    console.log('📋 Fetching pending staff registrations');
-
     const pendingStaff = await Staff.findPending();
-
-    console.log(`  ✅ Found ${pendingStaff.length} pending staff`);
 
     res.status(200).json({
       success: true,
@@ -561,8 +557,6 @@ const approveStaffRegistration = async (req, res, next) => {
     const { reason } = req.body;
     const adminEmail = req.admin?.email || req.user?.email || 'admin@easyLuxuryGo.com';
 
-    console.log('✅ Approving staff registration:', staffId);
-
     const staff = await Staff.findById(staffId);
 
     if (!staff) {
@@ -582,13 +576,10 @@ const approveStaffRegistration = async (req, res, next) => {
     // Approve the staff
     await staff.approve(adminEmail, reason);
 
-    console.log('  ✅ Staff approved:', staff.email);
-
     // Send approval email to staff
     try {
       const loginUrl = `${process.env.FRONTEND_URL}/staff/login`;
       await sendStaffApprovalEmail(staff.email, staff.name, { loginUrl, adminName: adminEmail });
-      console.log('  📧 Approval email sent to staff');
     } catch (emailError) {
       console.error('  ⚠️ Failed to send approval email:', emailError.message);
       // Don't fail the approval if email fails
@@ -604,7 +595,6 @@ const approveStaffRegistration = async (req, res, next) => {
       
       if (notification) {
         await notification.markActionTaken(adminEmail);
-        console.log('  🔔 Notification marked as actioned');
       }
     } catch (notifError) {
       console.error('  ⚠️ Failed to update notification:', notifError.message);
@@ -631,8 +621,6 @@ const rejectStaffRegistration = async (req, res, next) => {
     const { reason } = req.body;
     const adminEmail = req.admin?.email || req.user?.email || 'admin@easyLuxuryGo.com';
 
-    console.log('❌ Rejecting staff registration:', staffId);
-
     const staff = await Staff.findById(staffId);
 
     if (!staff) {
@@ -652,8 +640,6 @@ const rejectStaffRegistration = async (req, res, next) => {
     // Reject the staff
     await staff.reject(adminEmail, reason || 'Registration rejected by admin');
 
-    console.log('  ✅ Staff rejected:', staff.email);
-
     // Mark related notification as actioned
     try {
       const notification = await Notification.findOne({ 
@@ -664,7 +650,6 @@ const rejectStaffRegistration = async (req, res, next) => {
       
       if (notification) {
         await notification.markActionTaken(adminEmail);
-        console.log('  🔔 Notification marked as actioned');
       }
     } catch (notifError) {
       console.error('  ⚠️ Failed to update notification:', notifError.message);
@@ -691,8 +676,6 @@ const cancelStaffRegistration = async (req, res, next) => {
     const { reason } = req.body;
     const adminEmail = req.admin?.email || req.user?.email || 'admin@easyLuxuryGo.com';
 
-    console.log('🚫 Cancelling staff registration:', staffId);
-
     const staff = await Staff.findById(staffId);
 
     if (!staff) {
@@ -713,8 +696,6 @@ const cancelStaffRegistration = async (req, res, next) => {
     // Cancel the staff
     await staff.cancel(adminEmail, reason || 'Registration cancelled by admin');
 
-    console.log('  ✅ Staff cancelled:', staff.email);
-
     // Mark related notification as actioned
     try {
       const notification = await Notification.findOne({ 
@@ -725,7 +706,6 @@ const cancelStaffRegistration = async (req, res, next) => {
       
       if (notification) {
         await notification.markActionTaken(adminEmail);
-        console.log('  🔔 Notification marked as actioned');
       }
     } catch (notifError) {
       console.error('  ⚠️ Failed to update notification:', notifError.message);
@@ -750,8 +730,6 @@ const getNotifications = async (req, res, next) => {
   try {
     const { limit = 50, unreadOnly = false } = req.query;
 
-    console.log('📬 Fetching admin notifications');
-
     let notifications;
     if (unreadOnly === 'true') {
       notifications = await Notification.getAdminUnread();
@@ -760,8 +738,6 @@ const getNotifications = async (req, res, next) => {
     }
 
     const unreadCount = await Notification.countAdminUnread();
-
-    console.log(`  ✅ Found ${notifications.length} notifications (${unreadCount} unread)`);
 
     res.status(200).json({
       success: true,

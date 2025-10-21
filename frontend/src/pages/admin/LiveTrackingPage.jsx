@@ -6,8 +6,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Map, { Marker, Popup } from 'react-map-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { Bus, RefreshCw, MapPin, Navigation, Clock } from 'lucide-react'
+import maplibregl from 'maplibre-gl'
 import AdminNav from '../../components/admin/AdminNav'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { useSocket } from '../../hooks/useSocket'
@@ -257,6 +258,7 @@ const LiveTrackingPage = () => {
                   onMove={evt => setViewport(evt.viewState)}
                   style={{ width: '100%', height: '100%' }}
                   mapStyle={`https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`}
+                  mapLib={maplibregl}
                 >
                   {activeTrips.map((trip) => (
                     trip.currentLocation?.latitude && trip.currentLocation?.longitude && (

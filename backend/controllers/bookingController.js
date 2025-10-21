@@ -24,42 +24,105 @@ const createBooking = async (req, res, next) => {
     } = req.body;
 
     // Basic validation
-    if (!tripId || !seats || !seats.length || !passengerInfo || !paymentMethod) {
+    if (!tripId) {
       return res.status(400).json({
         success: false,
-        message: 'Trip ID, seats, passenger info, and payment method are required'
+        message: 'Trip ID is required'
       });
     }
 
-    // Validate passengerInfo is an array and has matching length
-    if (!Array.isArray(passengerInfo) || passengerInfo.length !== seats.length) {
+    if (!seats || !Array.isArray(seats) || seats.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Passenger info must be an array with one entry per seat'
+        message: 'At least one seat must be selected'
       });
     }
 
-    // Validate each passenger has required fields
+    if (!passengerInfo || !Array.isArray(passengerInfo)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Passenger information is required'
+      });
+    }
+
+    if (!paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method is required'
+      });
+    }
+
+    // Validate passengerInfo has matching length
+    if (passengerInfo.length !== seats.length) {
+      return res.status(400).json({
+        success: false,
+        message: `Passenger info count (${passengerInfo.length}) must match seats count (${seats.length})`
+      });
+    }
+
+    // Validate each passenger has required fields with detailed error messages
     for (let i = 0; i < passengerInfo.length; i++) {
       const passenger = passengerInfo[i];
-      if (!passenger.name || !passenger.age || !passenger.gender || !passenger.seatNumber) {
+      const missingFields = [];
+      
+      if (!passenger.name || passenger.name.trim() === '') {
+        missingFields.push('name');
+      }
+      if (!passenger.age || isNaN(passenger.age) || parseInt(passenger.age) < 1) {
+        missingFields.push('age (must be a valid number)');
+      }
+      if (!passenger.gender || passenger.gender.trim() === '') {
+        missingFields.push('gender');
+      }
+      if (!passenger.seatNumber || passenger.seatNumber.trim() === '') {
+        missingFields.push('seatNumber');
+      }
+      
+      if (missingFields.length > 0) {
         return res.status(400).json({
           success: false,
-          message: `Passenger ${i + 1}: name, age, gender, and seatNumber are required`
+          message: `Passenger ${i + 1} (Seat ${passenger.seatNumber || 'Unknown'}): Missing or invalid fields - ${missingFields.join(', ')}`
+        });
+      }
+
+      // Validate age range
+      const age = parseInt(passenger.age);
+      if (age < 1 || age > 120) {
+        return res.status(400).json({
+          success: false,
+          message: `Passenger ${i + 1}: Age must be between 1 and 120`
+        });
+      }
+
+      // Validate gender
+      const validGenders = ['male', 'female', 'other'];
+      if (!validGenders.includes(passenger.gender.toLowerCase())) {
+        return res.status(400).json({
+          success: false,
+          message: `Passenger ${i + 1}: Gender must be male, female, or other`
         });
       }
     }
 
-    const booking = await bookingService.createBooking(
-      {
-        tripId,
-        seats,
-        passengerInfo,
-        paymentMethod,
-        promoCode
-      },
-      req.user._id
-    );
+    // Create booking through service
+    let booking;
+    try {
+      booking = await bookingService.createBooking(
+        {
+          tripId,
+          seats,
+          passengerInfo,
+          paymentMethod,
+          promoCode
+        },
+        req.user._id
+      );
+    } catch (serviceError) {
+      return res.status(serviceError.statusCode || 500).json({
+        success: false,
+        message: serviceError.message || 'Failed to create booking'
+      });
+    }
 
     res.status(201).json({
       success: true,

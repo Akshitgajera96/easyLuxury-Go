@@ -5,45 +5,59 @@
  */
 
 const errorMiddleware = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
+  // Start with default 500 status code
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Server Error';
 
-  // Log error for debugging
-  console.error('❌ Error caught by middleware:', err);
+  // Log error for debugging with full stack trace
+  console.error('❌ Error caught by middleware:', {
+    message: err.message,
+    name: err.name,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    code: err.code,
+    statusCode: err.statusCode,
+    path: req.path,
+    method: req.method,
+    body: req.method === 'POST' || req.method === 'PUT' ? req.body : undefined
+  });
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
-    const message = 'Resource not found';
-    error = { message, statusCode: 404 };
+    statusCode = 404;
+    message = 'Resource not found';
   }
 
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const message = 'Duplicate field value entered';
-    error = { message, statusCode: 400 };
+    statusCode = 400;
+    message = 'Duplicate field value entered';
   }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message).join(', ');
-    error = { message, statusCode: 400 };
+    statusCode = 400;
+    message = Object.values(err.errors).map(val => val.message).join(', ');
   }
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    const message = 'Invalid token';
-    error = { message, statusCode: 401 };
+    statusCode = 401;
+    message = 'Invalid token';
   }
 
   if (err.name === 'TokenExpiredError') {
-    const message = 'Token expired';
-    error = { message, statusCode: 401 };
+    statusCode = 401;
+    message = 'Token expired';
   }
 
-  res.status(error.statusCode || 500).json({
+  res.status(statusCode).json({
     success: false,
-    message: error.message || 'Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message,
+    error: err.name,
+    ...(process.env.NODE_ENV === 'development' && { 
+      stack: err.stack,
+      details: err
+    })
   });
 };
 

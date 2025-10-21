@@ -88,15 +88,40 @@ const PaymentMethodSelector = ({ amount, onSuccess, onCancel }) => {
               </p>
             </div>
             
-            <div className="bg-accent/10 border border-accent rounded-lg p-4">
-              <h4 className="font-semibold text-black40 mb-2">Popular UPI Apps:</h4>
-              <div className="grid grid-cols-3 gap-2">
-                {['Google Pay', 'PhonePe', 'Paytm'].map(app => (
-                  <div key={app} className="bg-white p-2 rounded text-center text-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    {app}
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm">
+              <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                <span className="mr-2">📱</span>
+                Popular UPI Apps:
+              </h4>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { name: 'Google Pay', icon: '💳', color: 'from-blue-500 to-blue-600', textColor: 'text-white' },
+                  { name: 'PhonePe', icon: '💜', color: 'from-purple-500 to-purple-600', textColor: 'text-white' },
+                  { name: 'Paytm', icon: '💙', color: 'from-blue-600 to-cyan-500', textColor: 'text-white' }
+                ].map(app => (
+                  <div 
+                    key={app.name} 
+                    className="group cursor-pointer"
+                    onClick={() => {
+                      // Optionally auto-fill UPI suffix
+                      const suffix = app.name === 'Google Pay' ? '@gpay' : 
+                                    app.name === 'PhonePe' ? '@ybl' : 
+                                    '@paytm';
+                      setPaymentDetails({ ...paymentDetails, upiSuffix: suffix });
+                    }}
+                  >
+                    <div className="bg-white border-2 border-gray-200 rounded-xl p-3 text-center shadow-sm hover:shadow-lg hover:border-blue-400 hover:-translate-y-1 transition-all duration-200">
+                      <div className={`w-14 h-14 bg-gradient-to-br ${app.color} rounded-2xl mx-auto mb-2 flex items-center justify-center text-3xl shadow-md group-hover:scale-110 transition-transform`}>
+                        {app.icon}
+                      </div>
+                      <p className="text-xs font-bold text-gray-800 leading-tight">{app.name}</p>
+                    </div>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-gray-600 mt-3 text-center">
+                Tap an app to use its UPI handle
+              </p>
             </div>
           </div>
         )

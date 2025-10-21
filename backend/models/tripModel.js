@@ -162,13 +162,67 @@ tripSchema.methods.isSeatAvailable = function(seatNumber) {
 
 // Method to book seats
 tripSchema.methods.bookSeats = function(seats, passengerInfo, bookingId) {
-  const bookedSeats = passengerInfo.map(passenger => ({
-    seatNumber: passenger.seatNumber,
-    passengerName: passenger.name,
-    passengerAge: passenger.age,
-    passengerGender: passenger.gender,
-    bookingId: bookingId
-  }));
+  // Validate inputs
+  if (!passengerInfo || !Array.isArray(passengerInfo)) {
+    throw new Error('Passenger info must be an array');
+  }
+
+  if (passengerInfo.length === 0) {
+    throw new Error('At least one passenger is required');
+  }
+
+  // Helper function to determine seat type and fare from seat number
+  const getSeatTypeAndFare = (seatNumber) => {
+    const seatStr = seatNumber.toLowerCase();
+    
+    // Determine seat type based on seat number pattern
+    let seatType = 'single'; // default
+    let fare = this.baseFare; // Use base fare as default
+    
+    if (seatStr.includes('l') || seatStr.includes('lower')) {
+      seatType = 'sleeper-lower';
+      fare = this.seatPricing?.sleeperLower || fare;
+    } else if (seatStr.includes('u') || seatStr.includes('upper')) {
+      seatType = 'sleeper-upper';
+      fare = this.seatPricing?.sleeperUpper || fare;
+    } else if (seatStr.includes('d') || seatStr.includes('double')) {
+      seatType = 'double';
+      fare = this.seatPricing?.double || fare;
+    } else {
+      seatType = 'single';
+      fare = this.seatPricing?.single || fare;
+    }
+    
+    return { seatType, fare };
+  };
+
+  const bookedSeats = passengerInfo.map((passenger, index) => {
+    // Validate passenger data
+    if (!passenger.seatNumber) {
+      throw new Error(`Passenger ${index + 1}: seatNumber is required`);
+    }
+    if (!passenger.name) {
+      throw new Error(`Passenger ${index + 1}: name is required`);
+    }
+    if (!passenger.age) {
+      throw new Error(`Passenger ${index + 1}: age is required`);
+    }
+    if (!passenger.gender) {
+      throw new Error(`Passenger ${index + 1}: gender is required`);
+    }
+
+    const { seatType, fare } = getSeatTypeAndFare(passenger.seatNumber);
+    
+    return {
+      seatNumber: passenger.seatNumber,
+      seatType,
+      fare,
+      passengerName: passenger.name,
+      passengerAge: parseInt(passenger.age),
+      passengerGender: passenger.gender.toLowerCase(),
+      bookingId: bookingId
+    };
+  });
 
   this.bookedSeats.push(...bookedSeats);
   this.availableSeats -= seats.length;

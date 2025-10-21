@@ -36,10 +36,25 @@ const BookingPage = () => {
   const [addMoneyAmount, setAddMoneyAmount] = useState('')
 
   // Mock data - in real app, this would come from location state or API
+  // Using tomorrow's date for mock data to avoid "already departed" errors
+  const getTomorrowDate = () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(10, 0, 0, 0)
+    return tomorrow.toISOString()
+  }
+  
+  const getTomorrowArrival = () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    tomorrow.setHours(16, 0, 0, 0)
+    return tomorrow.toISOString()
+  }
+
   const trip = location.state?.trip || {
     id: '1',
-    departureDateTime: '2024-01-20T10:00:00',
-    arrivalDateTime: '2024-01-20T16:00:00',
+    departureDateTime: getTomorrowDate(),
+    arrivalDateTime: getTomorrowArrival(),
     baseFare: 1200,
     availableSeats: 25,
     route: {
@@ -73,25 +88,6 @@ const BookingPage = () => {
       totalRows: 10
     }
   }
-
-  // Debug: Log bus data to console
-  useEffect(() => {
-    console.log('🚌 Bus data received in BookingPage:', {
-      busNumber: bus.busNumber,
-      hasSeatLayout: !!bus.seatLayout,
-      seatLayoutStructure: bus.seatLayout ? {
-        hasLeft: !!bus.seatLayout.left,
-        hasRight: !!bus.seatLayout.right,
-        hasLowerDeck: !!bus.seatLayout.lowerDeck,
-        hasUpperDeck: !!bus.seatLayout.upperDeck,
-        leftUpperCount: bus.seatLayout.left?.upper?.length || 0,
-        leftLowerCount: bus.seatLayout.left?.lower?.length || 0,
-        rightUpperCount: bus.seatLayout.right?.upper?.length || 0,
-        rightLowerCount: bus.seatLayout.right?.lower?.length || 0
-      } : 'NO LAYOUT',
-      fullSeatLayout: bus.seatLayout
-    });
-  }, [bus])
 
   const bookedSeats = ['U1-1', 'L2-3', 'U5-2'] // Mock booked seats
   const lockedSeats = ['U3-1'] // Mock locked seats
@@ -168,10 +164,18 @@ const BookingPage = () => {
   const handleConfirmBooking = async () => {
     setLoading(true)
     try {
+      // Validate and format passenger data before sending
+      const formattedPassengerInfo = passengerDetails.map(passenger => ({
+        seatNumber: passenger.seatNumber,
+        name: passenger.name.trim(),
+        age: parseInt(passenger.age) || 0,
+        gender: passenger.gender.toLowerCase()
+      }))
+
       const bookingData = {
         tripId: trip._id || trip.id,
         seats: selectedSeats,
-        passengerInfo: passengerDetails,
+        passengerInfo: formattedPassengerInfo,
         paymentMethod: selectedPaymentMethod
       }
 
@@ -197,9 +201,14 @@ const BookingPage = () => {
         throw new Error(response.message || 'Booking failed')
       }
     } catch (error) {
-      console.error('Booking failed:', error)
-      toast.error(error.response?.data?.message || error.message || 'Booking failed. Please try again.', {
-        duration: 4000
+      // Show specific error message from backend
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Booking failed. Please try again.'
+      
+      toast.error(errorMessage, {
+        duration: 5000
       })
     } finally {
       setLoading(false)

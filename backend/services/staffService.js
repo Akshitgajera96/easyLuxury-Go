@@ -11,7 +11,7 @@ const MESSAGES = require('../constants/messages');
 /**
  * Create a new staff member
  * @param {object} staffData - Staff data
- * @returns {object} Created staff and token
+ * @returns {object} Created staff
  */
 const createStaff = async (staffData) => {
   const {
@@ -57,15 +57,11 @@ const createStaff = async (staffData) => {
 
   await staff.save();
 
-  // Generate token
-  const token = generateToken(staff._id, staff.role);
-
-  // Return staff without password
+  // Return staff without password (no token on staff creation)
   const staffResponse = await Staff.findById(staff._id).select('-password');
 
   return {
-    staff: staffResponse,
-    token
+    staff: staffResponse
   };
 };
 

@@ -14,6 +14,11 @@ const jwt = require('jsonwebtoken');
  * @returns {string} JWT token
  */
 const generateToken = (userId, role, email = null) => {
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ CRITICAL: JWT_SECRET is not defined in environment variables');
+    throw new Error('Server configuration error: JWT_SECRET is missing. Please contact administrator.');
+  }
+
   const payload = { 
     id: userId, 
     role: role 
@@ -28,7 +33,7 @@ const generateToken = (userId, role, email = null) => {
     payload,
     process.env.JWT_SECRET,
     { 
-      expiresIn: '30d' // Token expires in 30 days
+      expiresIn: '48h' // Token expires in 48 hours
     }
   );
 };

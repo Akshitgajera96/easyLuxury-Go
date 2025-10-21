@@ -87,8 +87,7 @@ const LocationUpdatePage = () => {
   }
 
   const handleLocationUpdate = (location) => {
-    // Update UI or show confirmation
-    console.log('Location updated:', location)
+    // Location updated
   }
 
   const formatDateTime = (dateTime) => {

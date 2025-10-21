@@ -40,23 +40,6 @@ const StaffDashboardPage = () => {
         const allBookings = bookingsResponse.data.bookings || []
         setBookings(allBookings)
         
-        // Calculate stats
-        const confirmedBookings = allBookings.filter(b => b.bookingStatus === 'confirmed')
-        const totalSeatsBooked = confirmedBookings.reduce((sum, b) => sum + (b.seats?.length || 0), 0)
-        
-        setStats({
-          totalBookings: allBookings.length,
-          seatsBooked: totalSeatsBooked,
-          seatsAvailable: 100 - totalSeatsBooked, // This should come from actual trip capacity
-          boardingSoon: confirmedBookings.filter(b => {
-            const departureTime = new Date(b.trip?.departureDateTime)
-            const now = new Date()
-            const hoursDiff = (departureTime - now) / (1000 * 60 * 60)
-            return hoursDiff > 0 && hoursDiff <= 2
-          }).length,
-          totalCapacity: 100 // This should come from actual trip
-        })
-        
         // Get unique trips from bookings
         const uniqueTrips = [...new Map(
           allBookings
@@ -65,6 +48,37 @@ const StaffDashboardPage = () => {
         ).values()]
         
         setTodayTrips(uniqueTrips.slice(0, 5))
+        
+        // Get the active/current trip (most recent scheduled trip)
+        const activeTrip = uniqueTrips.find(trip => {
+          const now = new Date()
+          const departure = new Date(trip.departureDateTime)
+          const arrival = new Date(trip.arrivalDateTime)
+          return now >= departure && now < arrival
+        }) || uniqueTrips[0] // Fallback to first trip if no active trip
+        
+        // Get actual bus capacity from the trip
+        const busCapacity = activeTrip?.bus?.totalSeats || 60 // Default to 60 if not found
+        
+        // Calculate stats for the active trip
+        const activeTripBookings = allBookings.filter(b => 
+          b.trip?._id === activeTrip?._id || b.trip?.id === activeTrip?._id
+        )
+        const confirmedBookings = activeTripBookings.filter(b => b.bookingStatus === 'confirmed')
+        const totalSeatsBooked = confirmedBookings.reduce((sum, b) => sum + (b.seats?.length || 0), 0)
+        
+        setStats({
+          totalBookings: activeTripBookings.length,
+          seatsBooked: totalSeatsBooked,
+          seatsAvailable: busCapacity - totalSeatsBooked,
+          boardingSoon: confirmedBookings.filter(b => {
+            const departureTime = new Date(b.trip?.departureDateTime)
+            const now = new Date()
+            const hoursDiff = (departureTime - now) / (1000 * 60 * 60)
+            return hoursDiff > 0 && hoursDiff <= 2
+          }).length,
+          totalCapacity: busCapacity
+        })
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
@@ -133,32 +147,36 @@ const StaffDashboardPage = () => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
       >
         {/* Today's Trips */}
-        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Trips</h3>
+        <div className="bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <h3 className="text-lg font-semibold text-white mb-4">Today's Trips</h3>
           <div className="space-y-3">
             {todayTrips.length > 0 ? (
               todayTrips.map((trip, index) => {
                 const status = getTripStatus(trip)
                 return (
                   <div key={trip._id || index} className={`flex justify-between items-center p-3 rounded-lg ${
-                    status === 'Active' ? 'bg-green-50' : 'bg-accent/10'
+                    status === 'Active' ? 'bg-green-600' : 'bg-gray-700'
                   }`}>
                     <div>
-                      <p className="font-semibold">
+                      <p className="font-semibold text-white">
                         {trip.route?.sourceCity || trip.route?.from || 'N/A'} → {trip.route?.destinationCity || trip.route?.to || 'N/A'}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-300">
                         {formatDateTime(trip.departureDateTime)} - {formatDateTime(trip.arrivalDateTime)}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 rounded text-sm ${getStatusColor(status)}`}>
+                    <span className={`px-2 py-1 rounded text-sm ${
+                      status === 'Active' ? 'bg-green-800 text-green-100' : 
+                      status === 'Scheduled' ? 'bg-blue-600 text-blue-100' : 
+                      'bg-gray-500 text-gray-100'
+                    }`}>
                       {status}
                     </span>
                   </div>
                 )
               })
             ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No trips scheduled today</p>
+              <p className="text-sm text-gray-400 text-center py-4">No trips scheduled today</p>
             )}
           </div>
         </div>
@@ -169,11 +187,17 @@ const StaffDashboardPage = () => {
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {bookings.length > 0 ? (
               bookings.slice(0, 10).map((booking, index) => (
-                booking.passengerInfo && booking.passengerInfo.length > 0 ? (
-                  booking.passengerInfo.map((passenger, pIndex) => (
-                    <div key={`${booking._id}-${pIndex}`} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                      <span className="font-medium">{passenger.name || 'N/A'}</span>
-                      <span className="text-sm text-gray-500">Seat {booking.seats?.[pIndex] || 'N/A'}</span>
+                booking.seats && booking.seats.length > 0 ? (
+                  booking.seats.map((seat, pIndex) => (
+                    <div key={`${booking._id}-${pIndex}`} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 text-accent border-gray-300 rounded focus:ring-2 focus:ring-accent cursor-pointer"
+                      />
+                      <div className="flex-1 flex justify-between items-center">
+                        <span className="font-medium">{seat.passengerName || 'N/A'}</span>
+                        <span className="text-sm text-gray-500">Seat {seat.seatNumber || 'N/A'}</span>
+                      </div>
                     </div>
                   ))
                 ) : null

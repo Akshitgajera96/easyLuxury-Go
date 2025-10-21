@@ -46,7 +46,6 @@ const protect = async (req, res, next) => {
         const staff = await Staff.findById(decoded.id).select('-password');
         
         if (!staff) {
-          console.log('❌ Staff auth: Staff not found for token');
           return res.status(401).json({
             success: false,
             message: MESSAGES.AUTH.TOKEN_INVALID
@@ -67,7 +66,6 @@ const protect = async (req, res, next) => {
         const user = await User.findById(decoded.id).select('-password');
         
         if (!user) {
-          console.log('❌ User auth: User not found for token');
           return res.status(401).json({
             success: false,
             message: MESSAGES.AUTH.TOKEN_INVALID
@@ -75,7 +73,6 @@ const protect = async (req, res, next) => {
         }
 
         if (user.isActive === false) {
-          console.log('❌ User auth: User account is deactivated');
           return res.status(403).json({
             success: false,
             message: 'Your account has been deactivated. Please contact support.'
@@ -170,7 +167,6 @@ const verifyAdmin = async (req, res, next) => {
     }
 
     if (!token) {
-      console.log('❌ Admin auth: No token provided');
       return res.status(401).json({
         success: false,
         message: 'Admin authentication required. Please provide a valid token.'
@@ -181,13 +177,8 @@ const verifyAdmin = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      console.log('🔑 Admin auth: Token decoded successfully');
-      console.log('  Role:', decoded.role);
-      console.log('  Email:', decoded.email);
-      
       // Check if role is admin
       if (decoded.role !== 'admin') {
-        console.log('❌ Admin auth: Invalid role -', decoded.role);
         return res.status(403).json({
           success: false,
           message: 'Access denied. Admin privileges required.'
@@ -196,7 +187,6 @@ const verifyAdmin = async (req, res, next) => {
 
       // Verify email matches admin email from environment (case-insensitive)
       if (!process.env.ADMIN_EMAIL || decoded.email.toLowerCase() !== process.env.ADMIN_EMAIL.toLowerCase()) {
-        console.log('❌ Admin auth: Email mismatch or not configured');
         return res.status(403).json({
           success: false,
           message: 'Unauthorized admin access'
@@ -210,11 +200,9 @@ const verifyAdmin = async (req, res, next) => {
         name: 'Admin'
       };
       
-      console.log('✅ Admin auth: Verification successful');
       next();
     } catch (jwtError) {
       if (jwtError.name === 'TokenExpiredError') {
-        console.log('❌ Admin auth: Token expired');
         return res.status(401).json({
           success: false,
           message: 'Admin session expired. Please login again.',
@@ -223,7 +211,6 @@ const verifyAdmin = async (req, res, next) => {
       }
       
       if (jwtError.name === 'JsonWebTokenError') {
-        console.log('❌ Admin auth: Invalid token format');
         return res.status(401).json({
           success: false,
           message: 'Invalid admin token. Please login again.'
@@ -265,13 +252,8 @@ const verifyStaff = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      console.log('🔑 Staff auth: Token decoded successfully');
-      console.log('  Role:', decoded.role);
-      console.log('  Email:', decoded.email);
-      
       // Check if role is staff
       if (decoded.role !== 'staff') {
-        console.log('❌ Staff auth: Invalid role -', decoded.role);
         return res.status(403).json({
           success: false,
           message: 'Access denied. Staff privileges required.'
@@ -282,7 +264,6 @@ const verifyStaff = async (req, res, next) => {
       const staff = await Staff.findById(decoded.id).select('-password');
       
       if (!staff) {
-        console.log('❌ Staff auth: Staff account not found');
         return res.status(401).json({
           success: false,
           message: 'Staff account not found'
@@ -291,7 +272,6 @@ const verifyStaff = async (req, res, next) => {
 
       // Check if staff is approved
       if (!staff.approved) {
-        console.log('❌ Staff auth: Staff not approved');
         return res.status(403).json({
           success: false,
           message: 'Your account is pending admin approval. Please contact administrator.'
@@ -300,7 +280,6 @@ const verifyStaff = async (req, res, next) => {
 
       // Check if staff is active
       if (!staff.isActive) {
-        console.log('❌ Staff auth: Staff account deactivated');
         return res.status(403).json({
           success: false,
           message: 'Your account has been deactivated. Please contact administrator.'
@@ -310,7 +289,6 @@ const verifyStaff = async (req, res, next) => {
       // Check if account is locked
       if (staff.isLocked()) {
         const lockTime = Math.ceil((staff.lockUntil - Date.now()) / 60000);
-        console.log('❌ Staff auth: Account locked');
         return res.status(403).json({
           success: false,
           message: `Account locked due to too many failed login attempts. Try again in ${lockTime} minutes.`
@@ -318,11 +296,9 @@ const verifyStaff = async (req, res, next) => {
       }
 
       req.staff = staff;
-      console.log('✅ Staff auth: Verification successful');
       next();
     } catch (jwtError) {
       if (jwtError.name === 'TokenExpiredError') {
-        console.log('❌ Staff auth: Token expired');
         return res.status(401).json({
           success: false,
           message: 'Staff session expired. Please login again.',
@@ -331,7 +307,6 @@ const verifyStaff = async (req, res, next) => {
       }
       
       if (jwtError.name === 'JsonWebTokenError') {
-        console.log('❌ Staff auth: Invalid token format');
         return res.status(401).json({
           success: false,
           message: 'Invalid staff token. Please login again.'

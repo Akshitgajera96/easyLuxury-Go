@@ -18,6 +18,7 @@ import NotFoundPage from '../pages/NotFoundPage'
 import ProfilePage from '../pages/ProfilePage'
 import WalletPage from '../pages/WalletPage'
 import BookingPage from '../pages/BookingPage'
+import BookingConfirmationPage from '../pages/BookingConfirmationPage'
 import MyBookingsPage from '../pages/user/MyBookingsPage'
 import TrackBusPage from '../pages/user/TrackBusPage'
 import ReviewsPage from '../pages/user/ReviewsPage'
@@ -106,6 +107,14 @@ const AppRouter = () => {
         element={
           <PrivateRoute>
             <BookingPage />
+          </PrivateRoute>
+        } 
+      />
+      <Route 
+        path="/booking-confirmation" 
+        element={
+          <PrivateRoute>
+            <BookingConfirmationPage />
           </PrivateRoute>
         } 
       />

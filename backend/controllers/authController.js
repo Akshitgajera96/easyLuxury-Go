@@ -57,7 +57,6 @@ const login = async (req, res, next) => {
 
     // Basic validation
     if (!email || !password) {
-      console.log('  ❌ Missing email or password');
       return res.status(400).json({
         success: false,
         message: 'Email and password are required'
@@ -139,7 +138,6 @@ const adminLogin = async (req, res, next) => {
 
     // Validate input
     if (!email || !password) {
-      console.log('  ❌ Missing email or password');
       return res.status(400).json({
         success: false,
         message: 'Email and password are required'
@@ -148,7 +146,6 @@ const adminLogin = async (req, res, next) => {
 
     // Check if admin credentials are configured
     if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD_HASH) {
-      console.error('  ❌ Admin credentials not configured in environment');
       return res.status(500).json({
         success: false,
         message: 'Admin authentication not configured properly'
@@ -173,7 +170,7 @@ const adminLogin = async (req, res, next) => {
       });
     }
 
-    // Generate JWT token with 8 hours expiry for better UX
+    // Generate JWT token with 48 hours expiry
     const token = jwt.sign(
       { 
         email: process.env.ADMIN_EMAIL,
@@ -182,7 +179,7 @@ const adminLogin = async (req, res, next) => {
         iat: Math.floor(Date.now() / 1000)
       },
       process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '48h' }
     );
 
     res.status(200).json({
@@ -194,7 +191,7 @@ const adminLogin = async (req, res, next) => {
           role: 'admin',
           name: 'Admin'
         },
-        expiresIn: '8h'
+        expiresIn: '48h'
       },
       message: 'Admin login successful'
     });
@@ -256,7 +253,6 @@ const staffRegister = async (req, res, next) => {
     // Create notification for admin immediately
     try {
       await Notification.createStaffRegistrationNotification(staff);
-      console.log('  🔔 Notification created for admin');
     } catch (notifError) {
       console.error('  ⚠️ Failed to create notification:', notifError.message);
       // Don't fail the registration if notification fails
@@ -290,11 +286,8 @@ const staffLogin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    console.log('🔐 Staff login attempt:', email);
-
     // Validate input
     if (!email || !password) {
-      console.log('  ❌ Missing email or password');
       return res.status(400).json({
         success: false,
         message: 'Email and password are required'
@@ -305,7 +298,6 @@ const staffLogin = async (req, res, next) => {
     const staff = await Staff.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }).select('+password');
     
     if (!staff) {
-      console.log('  ❌ Staff not found');
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -316,7 +308,6 @@ const staffLogin = async (req, res, next) => {
     const isPasswordValid = await staff.comparePassword(password);
     
     if (!isPasswordValid) {
-      console.log('  ❌ Invalid password');
       // Increment failed login attempts
       await staff.incLoginAttempts();
       
@@ -328,7 +319,6 @@ const staffLogin = async (req, res, next) => {
 
     // Check account status
     if (staff.status === 'pending') {
-      console.log('  ⏳ Account pending approval');
       return res.status(403).json({
         success: false,
         status: 'pending',
@@ -337,7 +327,6 @@ const staffLogin = async (req, res, next) => {
     }
 
     if (staff.status === 'rejected') {
-      console.log('  ❌ Account rejected');
       return res.status(403).json({
         success: false,
         status: 'rejected',
@@ -346,7 +335,6 @@ const staffLogin = async (req, res, next) => {
     }
 
     if (staff.status === 'cancelled') {
-      console.log('  ❌ Account cancelled');
       return res.status(403).json({
         success: false,
         status: 'cancelled',
@@ -357,7 +345,6 @@ const staffLogin = async (req, res, next) => {
     // Check if account is locked
     if (staff.isLocked()) {
       const lockTime = Math.ceil((staff.lockUntil - Date.now()) / 60000);
-      console.log('  🔒 Account locked');
       return res.status(403).json({
         success: false,
         message: `Account locked due to too many failed login attempts. Try again in ${lockTime} minutes.`
@@ -366,7 +353,6 @@ const staffLogin = async (req, res, next) => {
 
     // Check if staff is active
     if (!staff.isActive) {
-      console.log('  ❌ Staff account deactivated');
       return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated. Please contact administrator.'
@@ -375,14 +361,11 @@ const staffLogin = async (req, res, next) => {
 
     // Check if approved (should be, but double check)
     if (staff.status !== 'approved') {
-      console.log('  ❌ Account not approved, status:', staff.status);
       return res.status(403).json({
         success: false,
         message: 'Your account is not approved for login. Please contact administrator.'
       });
     }
-
-    console.log('  ✅ All checks passed, generating token');
 
     // Reset login attempts on successful login
     if (staff.loginAttempts > 0) {
@@ -402,10 +385,8 @@ const staffLogin = async (req, res, next) => {
         iat: Math.floor(Date.now() / 1000)
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '48h' }
     );
-
-    console.log('  ✅ Staff login successful');
 
     res.status(200).json({
       success: true,
@@ -422,7 +403,7 @@ const staffLogin = async (req, res, next) => {
           employeeId: staff.employeeId,
           status: staff.status
         },
-        expiresIn: '24h'
+        expiresIn: '48h'
       },
       message: 'Login successful'
     });

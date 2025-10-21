@@ -133,9 +133,25 @@ export const AuthProvider = ({ children }) => {
       return { success: true, data: { user: userData, token: authToken } }
     } catch (error) {
       console.error('AuthContext - Login error:', error)
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Login failed. Please try again.'
+      
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        errorMessage = 'Unable to connect to server. Please check your internet connection and try again.'
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. The service may be starting up. Please wait a moment and try again.'
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Invalid email or password.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       return { 
         success: false, 
-        error: error.response?.data?.message || error.message || 'Login failed' 
+        error: errorMessage
       }
     }
   }
@@ -160,9 +176,25 @@ export const AuthProvider = ({ children }) => {
       return { success: true, data: { admin: adminData, token: authToken } }
     } catch (error) {
       console.error('AuthContext - Admin login error:', error)
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Admin login failed. Please try again.'
+      
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        errorMessage = 'Unable to connect to server. Please check your internet connection and try again.'
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. The service may be starting up. Please wait a moment and try again.'
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Invalid admin credentials.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       return { 
         success: false, 
-        error: error.response?.data?.message || error.message || 'Admin login failed' 
+        error: errorMessage
       }
     }
   }
@@ -186,9 +218,25 @@ export const AuthProvider = ({ children }) => {
       return { success: true, data: { staff: staffData, token: authToken } }
     } catch (error) {
       console.error('❌ AuthContext - Staff login error:', error.response?.data || error.message)
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Staff login failed. Please try again.'
+      
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        errorMessage = 'Unable to connect to server. Please check your internet connection and try again.'
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. The service may be starting up. Please wait a moment and try again.'
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Invalid staff credentials.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       return { 
         success: false, 
-        error: error.response?.data?.message || error.message || 'Staff login failed',
+        error: errorMessage,
         status: error.response?.data?.status // Pass through status for pending/rejected/cancelled
       }
     }
