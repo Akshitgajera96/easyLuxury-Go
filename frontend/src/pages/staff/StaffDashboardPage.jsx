@@ -149,7 +149,7 @@ const StaffDashboardPage = () => {
         {/* Today's Trips */}
         <div className="bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <h3 className="text-lg font-semibold text-white mb-2">Today's Trips</h3>
-          <p className="text-sm text-gray-400 mb-4">All scheduled trips for today with real-time status updates</p>
+          <p className="text-sm text-gray-400 mb-4">All scheduled trips for today with live status tracking</p>
           <div className="space-y-3">
             {todayTrips.length > 0 ? (
               todayTrips.map((trip, index) => {
@@ -190,7 +190,7 @@ const StaffDashboardPage = () => {
         {/* Passenger Management */}
         <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Passenger List</h3>
-          <p className="text-sm text-gray-500 mb-4">Check-in passengers as they board the bus</p>
+          <p className="text-sm text-gray-500 mb-4">Mark passengers as boarded during check-in</p>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {bookings.length > 0 ? (
               bookings.slice(0, 10).map((booking, index) => (
@@ -218,7 +218,7 @@ const StaffDashboardPage = () => {
         {/* Quick Actions */}
         <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Quick Actions</h3>
-          <p className="text-sm text-gray-500 mb-4">Manage your trip and update live location for passengers</p>
+          <p className="text-sm text-gray-500 mb-4">Control trip status and share real-time location updates</p>
           <div className="space-y-3">
             <button 
               onClick={handleStartTrip}
@@ -250,27 +250,27 @@ const StaffDashboardPage = () => {
         className="mt-8 bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
       >
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Bus Status</h3>
-        <p className="text-sm text-gray-600 mb-4">Real-time statistics for your current trip</p>
+        <p className="text-sm text-gray-600 mb-4">Live capacity and booking statistics for active trip</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
           <div className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
             <p className="text-3xl font-bold text-green-600">{stats.seatsBooked}</p>
             <p className="text-sm text-green-700 font-medium">Seats Booked</p>
-            <p className="text-xs text-gray-600 mt-1">Confirmed passengers</p>
+            <p className="text-xs text-gray-600 mt-1">Confirmed bookings</p>
           </div>
           <div className="p-4 bg-accent/10 rounded-lg hover:bg-accent/20 transition-colors">
             <p className="text-3xl font-bold text-black40">{stats.seatsAvailable}</p>
             <p className="text-sm text-black40 font-medium">Seats Available</p>
-            <p className="text-xs text-gray-600 mt-1">Still open for booking</p>
+            <p className="text-xs text-gray-600 mt-1">Available to book</p>
           </div>
           <div className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
             <p className="text-3xl font-bold text-orange-600">{stats.boardingSoon}</p>
             <p className="text-sm text-orange-700 font-medium">Boarding Soon</p>
-            <p className="text-xs text-gray-600 mt-1">Within 2 hours</p>
+            <p className="text-xs text-gray-600 mt-1">Departing within 2hrs</p>
           </div>
           <div className="p-4 bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors">
             <p className="text-3xl font-bold text-sky-600">{stats.totalBookings}</p>
             <p className="text-sm text-sky-700 font-medium">Trip Bookings</p>
-            <p className="text-xs text-gray-600 mt-1">All bookings for this trip</p>
+            <p className="text-xs text-gray-600 mt-1">Total trip bookings</p>
           </div>
         </div>
       </motion.div>

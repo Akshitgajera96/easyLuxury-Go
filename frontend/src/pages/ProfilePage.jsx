@@ -109,9 +109,9 @@ const ProfilePage = () => {
               <div className="space-y-3">
                 <button 
                   onClick={() => navigate('/my-bookings')}
-                  className="w-full text-left p-3 bg-accent/10 text-gray-900 rounded-lg hover:bg-accent hover:shadow-xl hover:scale-105 transition-all duration-300 font-medium"
+                  className="w-full text-left p-3 bg-sky-50 text-sky-700 rounded-lg hover:bg-sky-100 transition-colors font-medium"
                 >
-                  🚌 View My Bookings
+                  🚌 Track Live Location
                 </button>
                 <button 
                   onClick={() => navigate('/wallet')}
@@ -123,13 +123,13 @@ const ProfilePage = () => {
                   onClick={() => navigate('/reviews')}
                   className="w-full text-left p-3 bg-sky-50 text-sky-700 rounded-lg hover:bg-sky-100 transition-colors font-medium"
                 >
-                  ✍ Write a Review
+                  ✍️ Write a Review
                 </button>
                 <button 
                   onClick={() => navigate('/trips')}
-                  className="w-full text-left p-3 bg-accent/10 text-gray-900 rounded-lg hover:bg-accent hover:shadow-xl hover:scale-105 transition-all duration-300 font-medium"
+                  className="w-full text-left p-3 bg-sky-50 text-sky-700 rounded-lg hover:bg-sky-100 transition-colors font-medium"
                 >
-                  🎫 Book New Trip
+                  📧 Send New Trip
                 </button>
               </div>
             </motion.div>

@@ -20,13 +20,11 @@ const initializeBookingSocket = (io) => {
     // Handle joining trip room for live tracking
     socket.on('join_trip', (tripId) => {
       socket.join(`trip_${tripId}`);
-      console.log(`Socket ${socket.id} joined trip_${tripId} for tracking`);
     });
 
     // Handle leaving trip room
     socket.on('leave_trip', (tripId) => {
       socket.leave(`trip_${tripId}`);
-      console.log(`Socket ${socket.id} left trip_${tripId}`);
     });
 
     // Handle live tracking updates
@@ -70,13 +68,11 @@ const initializeBookingSocket = (io) => {
     socket.on('join-admin-room', (userId) => {
       // In real app, verify user is admin
       socket.join('admin-room');
-      console.log(`Admin user ${userId} joined admin room`);
     });
 
     // Leave admin room
     socket.on('leave-admin-room', (userId) => {
       socket.leave('admin-room');
-      console.log(`Admin user ${userId} left admin room`);
     });
 
     // Handle real-time chat for customer support
@@ -84,7 +80,6 @@ const initializeBookingSocket = (io) => {
       const { userId, bookingId } = data;
       const roomId = `support-${bookingId || userId}`;
       socket.join(roomId);
-      console.log(`User ${userId} joined support chat: ${roomId}`);
     });
 
     socket.on('support-message', (data) => {
@@ -116,7 +111,6 @@ const initializeBookingSocket = (io) => {
     // Join user-specific room for personal notifications
     socket.on('join-user-room', (userId) => {
       socket.join(`user-${userId}`);
-      console.log(`User ${userId} joined their personal room`);
     });
   });
 };

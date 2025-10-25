@@ -73,12 +73,16 @@ const busLocationStatusSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
+// Indexes for basic queries
 busLocationStatusSchema.index({ trip: 1 });
 busLocationStatusSchema.index({ bus: 1 });
 busLocationStatusSchema.index({ staff: 1 });
 busLocationStatusSchema.index({ status: 1 });
 busLocationStatusSchema.index({ lastUpdated: 1 });
+
+// Compound indexes for scheduler optimization
+busLocationStatusSchema.index({ tripStarted: 1, tripCompleted: 1 }); // For getAllMonitored
+busLocationStatusSchema.index({ tripStarted: 1, tripCompleted: 1, status: 1, connectivityIssue: 1 }); // For getNeedingReminders
 
 // Method to calculate status based on lastUpdated time
 busLocationStatusSchema.methods.calculateStatus = function() {

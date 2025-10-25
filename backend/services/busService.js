@@ -47,20 +47,10 @@ const createBus = async (busData) => {
 
   // Generate seat layout only if not provided
   if (!seatLayout || !seatLayout.left || !seatLayout.right) {
-    console.log('⚠️  No custom seat layout provided, generating default layout');
     bus.generateSeatLayout();
-  } else {
-    console.log('✅ Custom seat layout received:', {
-      leftUpper: seatLayout.left.upper?.length || 0,
-      leftLower: seatLayout.left.lower?.length || 0,
-      rightUpper: seatLayout.right.upper?.length || 0,
-      rightLower: seatLayout.right.lower?.length || 0,
-      totalRows: seatLayout.totalRows
-    });
   }
 
   await bus.save();
-  console.log('✅ Bus saved successfully with seatLayout');
   return bus;
 };
 

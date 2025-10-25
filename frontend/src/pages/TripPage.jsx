@@ -146,9 +146,9 @@ const TripPage = () => {
               <h1 className="text-2xl font-bold">Available Buses</h1>
               <p className="text-accent">
                 {from && to ? (
-                  <>{from} → {to} � {date ? new Date(date).toLocaleDateString() : 'All Dates'} � {passengers} {passengers === '1' ? 'Passenger' : 'Passengers'}</>
+                  <>{from} → {to} • {date ? new Date(date).toLocaleDateString() : 'All Dates'} • {passengers} {passengers === '1' ? 'Passenger' : 'Passengers'}</>
                 ) : (
-                  <>All Available Routes � Browse and filter buses</>
+                  <>All Available Routes • Browse and filter buses</>
                 )}
               </p>
               {from && to && date && (

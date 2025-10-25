@@ -36,7 +36,7 @@ const Sidebar = ({ isOpen = true, onClose }) => {
     { path: '/staff/my-trips', label: 'My Trips', icon: '🚌' },
     { path: '/staff/passengers', label: 'Passengers', icon: '👥' },
     { path: '/staff/updates', label: 'Trip Updates', icon: '📍' },
-    { path: '/trips', label: 'Find Trip', icon: '🔍' },
+    { path: '/trips', label: 'Search Trips', icon: '🔍' },
   ]
 
   const menuItems = isAdmin ? adminMenuItems : isStaff ? staffMenuItems : userMenuItems
@@ -128,13 +128,12 @@ const Sidebar = ({ isOpen = true, onClose }) => {
                   onClick={onClose}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActivePath(item.path)
-                      ? 'bg-accent shadow-lg font-semibold'
-                      : 'hover:text-accent hover:bg-accent-light'
+                      ? 'bg-accent shadow-lg font-semibold !text-gray-900'
+                      : '!text-gray-900 hover:!text-accent hover:bg-accent-light'
                   }`}
-                  style={{ color: '#000000' }}
                 >
                   <span className="text-lg">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span className="font-medium">{item.label}</span>
                 </Link>
               </motion.div>
             ))}
@@ -144,11 +143,10 @@ const Sidebar = ({ isOpen = true, onClose }) => {
           <div className="flex-shrink-0 p-4 border-t border-gray-200">
             <Link
               to="/"
-              className="flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold hover:text-accent hover:bg-accent-light transition-colors"
-              style={{ color: '#000000', fontWeight: '600' }}
+              className="flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold !text-gray-900 hover:!text-accent hover:bg-accent-light transition-colors"
             >
               <span className="text-xl">🏠</span>
-              <span style={{ color: '#000000', fontWeight: '600' }}>Back to Home</span>
+              <span className="font-semibold">Back to Home</span>
             </Link>
           </div>
         </div>

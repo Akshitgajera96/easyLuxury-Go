@@ -2,7 +2,7 @@
 /**
  * Location Status Scheduler
  * Automatically updates bus location statuses based on lastUpdated time
- * Runs every 60 seconds to check and update statuses
+ * Runs every 2 minutes to check and update statuses (optimized for production)
  */
 
 const BusLocationStatus = require('../models/busLocationStatusModel');
@@ -25,8 +25,6 @@ const updateAllBusStatuses = async () => {
     if (busStatuses.length === 0) {
       return;
     }
-
-    console.log(`🔄 [Location Scheduler] Checking ${busStatuses.length} active buses...`);
 
     let statusChanges = 0;
     const updates = [];
@@ -61,20 +59,15 @@ const updateAllBusStatuses = async () => {
         );
 
         statusChanges++;
-        
-        console.log(`  ⚠️  Status changed: ${busStatus.bus} - ${previousStatus} → ${newStatus}`);
       }
     }
 
     if (updates.length > 0) {
       await Promise.all(updates);
-      console.log(`✅ [Location Scheduler] Updated ${statusChanges} bus statuses`);
-    } else {
-      console.log(`✅ [Location Scheduler] All buses status up-to-date`);
     }
 
   } catch (error) {
-    console.error('❌ [Location Scheduler] Error updating bus statuses:', error.message);
+    console.error('[Location Scheduler] Error:', error.message);
   }
 };
 
@@ -91,17 +84,9 @@ const checkBusesNeedingAttention = async () => {
       connectivityIssue: true
     }).populate('bus', 'busNumber');
 
-    if (busesNeedingAttention.length > 0) {
-      console.log(`⚠️  [Location Scheduler] ${busesNeedingAttention.length} buses need attention:`);
-      busesNeedingAttention.forEach(bus => {
-        const minutesSinceUpdate = bus.lastUpdated 
-          ? Math.floor((new Date() - bus.lastUpdated) / (1000 * 60))
-          : 'N/A';
-        console.log(`   - Bus ${bus.bus?.busNumber || 'Unknown'}: ${bus.status} (${minutesSinceUpdate} min since update)`);
-      });
-    }
+    // Silent check - data is logged in LocationLog for admin dashboard
   } catch (error) {
-    console.error('❌ [Location Scheduler] Error checking buses needing attention:', error.message);
+    console.error('[Location Scheduler] Error checking buses:', error.message);
   }
 };
 
@@ -113,22 +98,17 @@ let schedulerInterval = null;
 
 const startLocationScheduler = () => {
   if (schedulerInterval) {
-    console.log('⚠️  [Location Scheduler] Already running');
     return;
   }
-
-  console.log('🚀 [Location Scheduler] Starting location status monitor...');
   
   // Run immediately on start
   updateAllBusStatuses();
   
-  // Then run every 60 seconds
+  // Then run every 2 minutes (optimized for production)
   schedulerInterval = setInterval(async () => {
     await updateAllBusStatuses();
     await checkBusesNeedingAttention();
-  }, 60000); // 60 seconds
-
-  console.log('✅ [Location Scheduler] Location status monitor started (runs every 60s)');
+  }, 120000); // 120 seconds (2 minutes)
 };
 
 /**
@@ -138,7 +118,6 @@ const stopLocationScheduler = () => {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('🛑 [Location Scheduler] Location status monitor stopped');
   }
 };
 
@@ -165,11 +144,9 @@ const markTripCompleted = async (tripId) => {
         performedBy: 'system',
         notes: 'Trip marked as completed'
       });
-
-      console.log(`✅ [Location Scheduler] Trip ${tripId} marked as completed`);
     }
   } catch (error) {
-    console.error('❌ [Location Scheduler] Error marking trip completed:', error.message);
+    console.error('[Location Scheduler] Error:', error.message);
   }
 };
 

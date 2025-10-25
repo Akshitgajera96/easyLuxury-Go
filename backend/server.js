@@ -37,7 +37,6 @@ const adminLocationRoutes = require('./routes/adminLocationRoutes');
 require('dotenv').config();
 
 // Validate environment variables before starting server
-console.log('\n🔍 Validating environment variables...');
 validateEnv();
 
 const app = express();
@@ -74,36 +73,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Basic rate limiting
-const rateLimit = (req, res, next) => {
-  const windowMs = 15 * 60 * 1000; // 15 minutes
-  const maxRequests = 100; // limit each IP to 100 requests per windowMs
-  
-  // Simple in-memory rate limiting (for development)
-  // In production, use a proper rate limiting library
-  const ip = req.ip;
-  const now = Date.now();
-  
-  if (!app.rateLimit) app.rateLimit = {};
-  if (!app.rateLimit[ip]) app.rateLimit[ip] = { count: 0, resetTime: now + windowMs };
-  
-  if (now > app.rateLimit[ip].resetTime) {
-    app.rateLimit[ip] = { count: 0, resetTime: now + windowMs };
-  }
-  
-  if (app.rateLimit[ip].count >= maxRequests) {
-    return res.status(429).json({
-      success: false,
-      message: 'Too many requests from this IP, please try again later.'
-    });
-  }
-  
-  app.rateLimit[ip].count++;
-  next();
-};
-
-app.use('/api/', rateLimit);
-
 // Middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
@@ -121,23 +90,15 @@ if (process.env.NODE_ENV === 'development') {
 // Socket.IO setup
 app.set('io', io);
 
-// Add Socket.IO connection logging
+// Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('✅ Socket.IO client connected:', socket.id);
-  
-  socket.on('disconnect', (reason) => {
-    console.log('❌ Socket.IO client disconnected:', socket.id, 'Reason:', reason);
-  });
-  
   socket.on('error', (error) => {
-    console.error('❌ Socket.IO error:', error);
+    console.error('Socket.IO error:', error);
   });
 });
 
 const bookingSocket = require('./sockets/bookingSocket');
 bookingSocket.initializeBookingSocket(io);
-
-console.log('✅ Socket.IO initialized and ready');
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
@@ -197,13 +158,7 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
-  console.log(`
-🚀 easyLuxury Go server running on port ${PORT}
-📊 Environment: ${process.env.NODE_ENV || 'development'}
-📡 API URL: http://localhost:${PORT}/api/v1
-🔌 Socket.IO: http://localhost:${PORT}
-💾 Database: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}
-  `);
+  console.log(`Server running on port ${PORT} | Environment: ${process.env.NODE_ENV || 'development'}`);
   
   // Start location status monitoring scheduler
   startLocationScheduler();
@@ -211,12 +166,9 @@ server.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down server gracefully...');
   stopLocationScheduler();
   await mongoose.connection.close();
-  console.log('📤 MongoDB connection closed');
   server.close(() => {
-    console.log('🔴 Server stopped');
     process.exit(0);
   });
 });

@@ -188,15 +188,6 @@ const searchTrips = async (from, to, date, days = 1) => {
   // Filter out trips where route didn't match
   const filteredTrips = trips.filter(trip => trip.route !== null);
 
-  // Debug log to check if seatLayout is present
-  if (filteredTrips.length > 0) {
-    console.log(`📊 Search found ${filteredTrips.length} trips`);
-    filteredTrips.forEach(trip => {
-      const hasLayout = trip.bus?.seatLayout?.left || trip.bus?.seatLayout?.right;
-      console.log(`  Bus ${trip.bus?.busNumber}: seatLayout ${hasLayout ? '✅ present' : '❌ missing'}`);
-    });
-  }
-
   return filteredTrips;
 };
 

@@ -15,18 +15,15 @@ const seatLocks = new Map(); // tripId -> { seatNumber: { userId, timestamp } }
  */
 const initializeSocket = (io) => {
   io.on('connection', (socket) => {
-    console.log(`🔌 User connected: ${socket.id}`);
 
     // Join trip room for seat updates
     socket.on('join-trip', (tripId) => {
       socket.join(`trip-${tripId}`);
-      console.log(`User ${socket.id} joined trip-${tripId}`);
     });
 
     // Leave trip room
     socket.on('leave-trip', (tripId) => {
       socket.leave(`trip-${tripId}`);
-      console.log(`User ${socket.id} left trip-${tripId}`);
     });
 
     // Lock seats for booking
@@ -128,8 +125,6 @@ const initializeSocket = (io) => {
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      console.log(`🔌 User disconnected: ${socket.id}`);
-      
       // Unlock all seats locked by this socket
       unlockSeatsBySocket(socket.id);
     });
