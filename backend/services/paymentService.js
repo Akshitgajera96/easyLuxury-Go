@@ -6,6 +6,7 @@
 
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // Initialize Razorpay instance only if credentials are provided
 let razorpay = null;
@@ -16,9 +17,9 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET &&
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET
   });
-  console.log('✓ Razorpay initialized successfully');
+  logger.info('Razorpay initialized successfully');
 } else {
-  console.warn('⚠ Razorpay credentials not configured. Payment features will be disabled.');
+  logger.warn('Razorpay credentials not configured. Payment features will be disabled.');
 }
 
 /**
@@ -40,7 +41,7 @@ const createOrder = async (amount, currency = 'INR', receipt, notes = {}) => {
     const order = await razorpay.orders.create(options);
     return order;
   } catch (error) {
-    console.error('Razorpay order creation error:', error);
+    logger.error(`Razorpay order creation error: ${error.message}`);
     throw new Error('Failed to create payment order');
   }
 };
@@ -50,7 +51,7 @@ const createOrder = async (amount, currency = 'INR', receipt, notes = {}) => {
  */
 const verifyPayment = (orderId, paymentId, signature) => {
   if (!process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET === 'your_razorpay_key_secret') {
-    console.error('Razorpay key secret not configured');
+    logger.error('Razorpay key secret not configured');
     return false;
   }
   
@@ -63,7 +64,7 @@ const verifyPayment = (orderId, paymentId, signature) => {
 
     return generated_signature === signature;
   } catch (error) {
-    console.error('Payment verification error:', error);
+    logger.error(`Payment verification error: ${error.message}`);
     return false;
   }
 };
@@ -80,7 +81,7 @@ const getPaymentDetails = async (paymentId) => {
     const payment = await razorpay.payments.fetch(paymentId);
     return payment;
   } catch (error) {
-    console.error('Error fetching payment details:', error);
+    logger.error(`Error fetching payment details: ${error.message}`);
     throw new Error('Failed to fetch payment details');
   }
 };
@@ -100,7 +101,7 @@ const initiateRefund = async (paymentId, amount, notes = {}) => {
     });
     return refund;
   } catch (error) {
-    console.error('Refund initiation error:', error);
+    logger.error(`Refund initiation error: ${error.message}`);
     throw new Error('Failed to initiate refund');
   }
 };

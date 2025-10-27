@@ -58,7 +58,7 @@ const DashboardPage = () => {
           
           // Transform recent bookings for display
           const transformedBookings = recentBookings.slice(0, 5).map(booking => ({
-            id: booking.bookingId || booking._id,
+            id: booking.pnrNumber || booking._id,
             user: booking.user?.name || 'N/A',
             route: booking.trip?.route 
               ? `${booking.trip.route.sourceCity} → ${booking.trip.route.destinationCity}`

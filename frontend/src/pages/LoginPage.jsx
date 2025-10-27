@@ -18,6 +18,8 @@ const LoginPage = () => {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('customer') // 'customer', 'admin', 'staff'
   const [showPassword, setShowPassword] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('Signing in...')
+  const [isSlowConnection, setIsSlowConnection] = useState(false)
 
   const { login, adminLogin, staffLogin, user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
@@ -80,6 +82,21 @@ const LoginPage = () => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setLoadingMessage('Signing in...')
+    setIsSlowConnection(false)
+
+    // Detect slow connection/cold start after 3 seconds
+    const slowConnectionTimer = setTimeout(() => {
+      setIsSlowConnection(true)
+      setLoadingMessage('Server is waking up, please wait...')
+    }, 3000)
+
+    // Show extended message after 8 seconds
+    const extendedTimer = setTimeout(() => {
+      if (loading) {
+        setLoadingMessage('Almost there, server is starting up...')
+      }
+    }, 8000)
 
     try {
       // Call appropriate login method based on user type
@@ -142,9 +159,27 @@ const LoginPage = () => {
       }
     } catch (err) {
       console.error('Login error:', err)
-      setError(err.response?.data?.message || 'An unexpected error occurred. Please try again.')
+      
+      // Enhanced error messages for common issues
+      let errorMessage = 'An unexpected error occurred. Please try again.'
+      
+      if (err.isTimeout || err.code === 'ECONNABORTED') {
+        errorMessage = 'Server took too long to respond. The server may be starting up from sleep mode. Please try again in a moment.'
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please check your internet connection or try again in a moment.'
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      setError(errorMessage)
     } finally {
+      clearTimeout(slowConnectionTimer)
+      clearTimeout(extendedTimer)
       setLoading(false)
+      setIsSlowConnection(false)
+      setLoadingMessage('Signing in...')
     }
   }
 
@@ -213,6 +248,23 @@ const LoginPage = () => {
               {currentUserType.description}
             </p>
           </div>
+
+          {/* Loading State with Cold Start Detection */}
+          {loading && isSlowConnection && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600"></div>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-800 font-medium">{loadingMessage}</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    First login may take 15-30 seconds as the server wakes up.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -317,10 +369,10 @@ const LoginPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent text-gray-900 py-3 rounded-lg font-semibold hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-accent text-gray-900 py-3 rounded-lg font-semibold hover:bg-gradient-to-r hover:from-accent hover:to-accent-dark hover:shadow-xl hover:scale-105 transition-all duration-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
           >
             {loading && <LoadingSpinner size="sm" variant="primary" />}
-            Sign In as {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+            {loading ? loadingMessage : `Sign In as ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
           </button>
 
           {/* Divider */}

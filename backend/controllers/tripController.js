@@ -30,7 +30,7 @@ const createTrip = async (req, res, next) => {
  */
 const getAllTrips = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, bus, route, status, departureDate, isActive } = req.query;
+    const { page = 1, limit = 10, bus, route, status, departureDate, isActive, includeExpired } = req.query;
     
     const filters = {};
     if (bus) filters.bus = bus;
@@ -38,6 +38,7 @@ const getAllTrips = async (req, res, next) => {
     if (status) filters.status = status;
     if (departureDate) filters.departureDate = departureDate;
     if (isActive !== undefined) filters.isActive = isActive === 'true';
+    if (includeExpired !== undefined) filters.includeExpired = includeExpired === 'true';
 
     const result = await tripService.getAllTrips(
       filters, 

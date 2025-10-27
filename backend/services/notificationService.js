@@ -31,11 +31,8 @@ const sendBookingConfirmation = async (bookingId) => {
     }
 
     const result = await emailUtils.sendBookingConfirmation(booking, booking.user);
-    
-    console.log(`✅ Booking confirmation sent for PNR: ${booking.pnrNumber}`);
     return result;
   } catch (error) {
-    console.error('❌ Failed to send booking confirmation:', error);
     return { success: false, error: error.message };
   }
 };
@@ -64,11 +61,8 @@ const sendCancellationNotification = async (bookingId) => {
     }
 
     const result = await emailUtils.sendCancellationConfirmation(booking, booking.user);
-    
-    console.log(`✅ Cancellation notification sent for PNR: ${booking.pnrNumber}`);
     return result;
   } catch (error) {
-    console.error('❌ Failed to send cancellation notification:', error);
     return { success: false, error: error.message };
   }
 };
@@ -89,11 +83,8 @@ const sendWalletNotification = async (userId, amount, type) => {
     }
 
     const result = await emailUtils.sendWalletNotification(user, amount, type, user.walletBalance);
-    
-    console.log(`✅ Wallet notification sent to ${user.email}`);
     return result;
   } catch (error) {
-    console.error('❌ Failed to send wallet notification:', error);
     return { success: false, error: error.message };
   }
 };
@@ -143,10 +134,8 @@ Have a safe journey!
       text
     });
 
-    console.log(`✅ Trip reminder sent for PNR: ${booking.pnrNumber}`);
     return result;
   } catch (error) {
-    console.error('❌ Failed to send trip reminder:', error);
     return { success: false, error: error.message };
   }
 };
@@ -172,10 +161,8 @@ const sendGenericNotification = async (userId, subject, message) => {
       text: message
     });
 
-    console.log(`✅ Generic notification sent to ${user.email}`);
     return result;
   } catch (error) {
-    console.error('❌ Failed to send generic notification:', error);
     return { success: false, error: error.message };
   }
 };

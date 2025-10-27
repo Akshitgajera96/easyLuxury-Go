@@ -5,35 +5,50 @@
  */
 
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
-      console.error('❌ CRITICAL: MONGO_URI is not defined in environment variables');
-      console.error('📝 Please set MONGO_URI in your Render dashboard');
+      logger.error('CRITICAL: MONGO_URI is not defined in environment variables');
+      logger.error('Please set MONGO_URI in your Render dashboard');
       if (process.env.NODE_ENV === 'production') {
         throw new Error('MONGO_URI is required in production');
       }
-      console.warn('⚠️ Using fallback local MongoDB connection for development');
+      logger.warn('Using fallback local MongoDB connection for development');
     }
 
     const conn = await mongoose.connect(
       process.env.MONGO_URI || 'mongodb://localhost:27017/easyluxury',
       {
-        serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+        // Connection timeouts
+        serverSelectionTimeoutMS: 10000, // Increased to 10 seconds for Render cold starts
         socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-        maxPoolSize: process.env.NODE_ENV === 'production' ? 50 : 10, // Connection pool size
-        minPoolSize: process.env.NODE_ENV === 'production' ? 5 : 2, // Minimum connections
-        maxIdleTimeMS: 10000, // Remove idle connections after 10 seconds
+        connectTimeoutMS: 10000, // Connection timeout
+        
+        // Connection pooling - optimized for Render free tier
+        maxPoolSize: process.env.NODE_ENV === 'production' ? 10 : 5, // Reduced for free tier
+        minPoolSize: process.env.NODE_ENV === 'production' ? 3 : 1, // Keep minimum connections alive
+        maxIdleTimeMS: 60000, // Keep idle connections for 60 seconds (prevent reconnection overhead)
+        
+        // Keep-alive settings to maintain connection health
+        keepAlive: true,
+        keepAliveInitialDelay: 300000, // 5 minutes
+        
+        // Retry settings
         retryWrites: true, // Retry failed writes
         retryReads: true, // Retry failed reads
+        
+        // Write concern for better performance
+        w: 'majority',
+        wtimeoutMS: 5000,
       }
     );
 
-    console.log(`MongoDB Connected: ${conn.connection.name}`);
+    logger.info(`MongoDB Connected: ${conn.connection.name}`);
     return conn;
   } catch (error) {
-    console.error('Database connection error:', error.message);
+    logger.error(`Database connection error: ${error.message}`);
     
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
@@ -44,7 +59,7 @@ const connectDB = async () => {
 
 // MongoDB connection events
 mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err);
+  logger.error(`MongoDB connection error: ${err.message}`);
 });
 
 // Graceful shutdown

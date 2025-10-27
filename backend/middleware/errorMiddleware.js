@@ -4,20 +4,23 @@
  * Catches all errors and returns consistent JSON error responses
  */
 
+const logger = require('../utils/logger');
+
 const errorMiddleware = (err, req, res, next) => {
   // Start with default 500 status code
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Server Error';
 
-  // Log error for debugging with full stack trace
-  console.error('❌ Error caught by middleware:', {
+  // Log error for debugging with full context
+  logger.error('Error caught by middleware', {
     message: err.message,
     name: err.name,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    code: err.code,
-    statusCode: err.statusCode,
-    path: req.path,
+    url: req.originalUrl,
     method: req.method,
+    ip: req.ip,
+    statusCode: err.statusCode || 500,
+    path: req.path,
     body: req.method === 'POST' || req.method === 'PUT' ? req.body : undefined
   });
 

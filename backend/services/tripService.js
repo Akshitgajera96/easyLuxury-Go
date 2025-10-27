@@ -8,6 +8,25 @@ const Trip = require('../models/tripModel');
 const Bus = require('../models/busModel');
 const Route = require('../models/routeModel');
 const MESSAGES = require('../constants/messages');
+const { TRIP_STATUS } = require('../constants/enums');
+
+/**
+ * Update expired trips automatically
+ * Marks trips as 'expired' if their departure date has passed and status is still 'scheduled'
+ */
+const updateExpiredTrips = async () => {
+  const now = new Date();
+  
+  await Trip.updateMany(
+    {
+      departureDateTime: { $lt: now },
+      status: { $in: [TRIP_STATUS.SCHEDULED, TRIP_STATUS.BOARDING] }
+    },
+    {
+      $set: { status: TRIP_STATUS.EXPIRED }
+    }
+  );
+};
 
 /**
  * Create a new trip
@@ -77,6 +96,9 @@ const createTrip = async (tripData) => {
  * @returns {object} Trips and pagination info
  */
 const getAllTrips = async (filters = {}, page = 1, limit = 10) => {
+  // Auto-update expired trips before fetching
+  await updateExpiredTrips();
+  
   const query = {};
 
   // Apply filters
@@ -101,6 +123,12 @@ const getAllTrips = async (filters = {}, page = 1, limit = 10) => {
   }
   if (filters.isActive !== undefined) {
     query.isActive = filters.isActive;
+  }
+  
+  // By default, INCLUDE expired trips in admin view (for transparency)
+  // Only exclude if explicitly requested with includeExpired=false
+  if (filters.includeExpired === false) {
+    query.status = query.status || { $ne: TRIP_STATUS.EXPIRED };
   }
 
   const skip = (page - 1) * limit;
@@ -156,6 +184,9 @@ const searchTrips = async (from, to, date, days = 1) => {
     throw new Error('Source, destination, and date are required');
   }
 
+  // Auto-update expired trips before searching
+  await updateExpiredTrips();
+
   // Limit days to maximum of 7
   const searchDays = Math.min(Math.max(1, days), 7);
 
@@ -171,7 +202,7 @@ const searchTrips = async (from, to, date, days = 1) => {
       $gte: startDate,
       $lt: endDate
     },
-    status: 'scheduled',
+    status: { $in: [TRIP_STATUS.SCHEDULED, TRIP_STATUS.BOARDING] },
     isActive: true
   })
   .populate({

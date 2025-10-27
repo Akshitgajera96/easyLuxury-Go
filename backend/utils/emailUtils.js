@@ -6,6 +6,7 @@
  */
 
 const sgMail = require('@sendgrid/mail');
+const logger = require('./logger');
 
 // Initialize SendGrid if API key is available
 if (process.env.SENDGRID_API_KEY) {
@@ -41,23 +42,16 @@ const sendEmail = async (emailData) => {
     // Use SendGrid if API key is available
     if (process.env.SENDGRID_API_KEY) {
       const result = await sgMail.send(msg);
-      console.log(`✅ Email sent to ${to}: ${result[0].statusCode}`);
+      logger.info(`Email sent to ${to}: ${result[0].statusCode}`);
       return { success: true, provider: 'sendgrid', messageId: result[0].headers['x-message-id'] };
     } else {
-      // Fallback to console logging (development)
-      console.log('📧 Email (console fallback):', {
-        to,
-        subject,
-        text,
-        html: html ? '[HTML content]' : undefined
-      });
-      return { success: true, provider: 'console', message: 'Email logged to console' };
+      // Fallback to logging (development)
+      logger.debug('Email (fallback logging)', { to, subject });
+      return { success: true, provider: 'console', message: 'Email logged' };
     }
   } catch (error) {
-    console.error('❌ Email sending failed:', error);
-    
-    // Even if email fails, log and continue (don't break the application)
-    console.log('📧 Email would have been sent:', { to, subject });
+    logger.error(`Email sending failed: ${error.message}`);
+    logger.debug('Email attempt failed', { to, subject });
     return { 
       success: false, 
       provider: process.env.SENDGRID_API_KEY ? 'sendgrid' : 'console',

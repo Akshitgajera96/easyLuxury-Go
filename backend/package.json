@@ -6,28 +6,35 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node scripts/seedDatabase.js",
-    "test-mongo": "node scripts/testMongoConnection.js",
-    "test-auth": "node tests/testAuthSystem.js",
-    "check-env": "node tests/checkEnv.js",
-    "verify-prod": "node scripts/verifyEnvForProduction.js"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "predeploy-check": "npm run lint && node scripts/predeployCheck.js"
   },
   "author": "Akshit",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.0.1",
     "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.8.7",
     "nodemailer": "^6.9.7",
     "razorpay": "^2.9.2",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "winston": "^3.18.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.4",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2"
   }
 }

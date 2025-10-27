@@ -5,6 +5,7 @@
  */
 
 const nodemailer = require('nodemailer');
+const logger = require('../utils/logger');
 
 // Create transporter only if credentials are provided
 let transporter = null;
@@ -18,9 +19,9 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD &&
       pass: process.env.EMAIL_PASSWORD
     }
   });
-  console.log('✓ Email service initialized successfully');
+  logger.info('Email service initialized successfully');
 } else {
-  console.warn('⚠ Email credentials not configured. Email features will be disabled.');
+  logger.warn('Email credentials not configured. Email features will be disabled.');
 }
 
 /**
@@ -35,7 +36,7 @@ const generateOTP = () => {
  */
 const sendPasswordResetOTP = async (email, name, otp) => {
   if (!transporter) {
-    console.warn('Email service not configured. Skipping password reset OTP email.');
+    logger.warn('Email service not configured. Skipping password reset OTP email.');
     return false;
   }
   
@@ -95,10 +96,10 @@ const sendPasswordResetOTP = async (email, name, otp) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Password reset OTP sent to: ${email}`);
+    logger.info(`Password reset OTP sent to: ${email}`);
     return true;
   } catch (error) {
-    console.error('Error sending password reset OTP:', error);
+    logger.error(`Error sending password reset OTP: ${error.message}`);
     throw error;
   }
 };
@@ -108,7 +109,7 @@ const sendPasswordResetOTP = async (email, name, otp) => {
  */
 const sendBookingOTP = async (email, name, otp, bookingDetails) => {
   if (!transporter) {
-    console.warn('Email service not configured. Skipping booking OTP email.');
+    logger.warn('Email service not configured. Skipping booking OTP email.');
     return false;
   }
   
@@ -191,10 +192,10 @@ const sendBookingOTP = async (email, name, otp, bookingDetails) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Booking OTP sent to: ${email}`);
+    logger.info(`Booking OTP sent to: ${email}`);
     return true;
   } catch (error) {
-    console.error('Error sending booking OTP:', error);
+    logger.error(`Error sending booking OTP: ${error.message}`);
     throw error;
   }
 };
@@ -204,7 +205,7 @@ const sendBookingOTP = async (email, name, otp, bookingDetails) => {
  */
 const sendBookingConfirmation = async (email, name, bookingDetails) => {
   if (!transporter) {
-    console.warn('Email service not configured. Skipping booking confirmation email.');
+    logger.warn('Email service not configured. Skipping booking confirmation email.');
     return false;
   }
   
@@ -307,10 +308,10 @@ const sendBookingConfirmation = async (email, name, bookingDetails) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Booking confirmation sent to: ${email}`);
+    logger.info(`Booking confirmation sent to: ${email}`);
     return true;
   } catch (error) {
-    console.error('Error sending booking confirmation:', error);
+    logger.error(`Error sending booking confirmation: ${error.message}`);
     throw error;
   }
 };
@@ -320,7 +321,7 @@ const sendBookingConfirmation = async (email, name, bookingDetails) => {
  */
 const sendStaffApprovalEmail = async (staffEmail, staffName, extra = {}) => {
   if (!transporter) {
-    console.warn('Email service not configured. Skipping staff approval email.');
+    logger.warn('Email service not configured. Skipping staff approval email.');
     return false;
   }
   
@@ -399,10 +400,10 @@ const sendStaffApprovalEmail = async (staffEmail, staffName, extra = {}) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Staff approval email sent to: ${staffEmail}`);
+    logger.info(`Staff approval email sent to: ${staffEmail}`);
     return true;
   } catch (error) {
-    console.error('Error sending staff approval email:', error);
+    logger.error(`Error sending staff approval email: ${error.message}`);
     throw error;
   }
 };

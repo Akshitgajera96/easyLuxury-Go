@@ -27,10 +27,12 @@ const PAYMENT_STATUS = {
 
 const TRIP_STATUS = {
   SCHEDULED: 'scheduled',
+  BOARDING: 'boarding',
   DEPARTED: 'departed',
   ARRIVED: 'arrived',
   CANCELLED: 'cancelled',
-  DELAYED: 'delayed'
+  DELAYED: 'delayed',
+  EXPIRED: 'expired'
 };
 
 const SEAT_TYPES = {

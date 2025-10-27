@@ -2,14 +2,20 @@ import axios from 'axios';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1',
-  timeout: 30000,
+  timeout: 60000, // Increased to 60 seconds for Render cold starts
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Track first request for "waking up" detection
+let isFirstRequest = true;
+
 apiClient.interceptors.request.use(
   (config) => {
+    // Track request start time for slow response detection
+    config.metadata = { startTime: Date.now() };
+    
     // 🔐 SECURE TOKEN HANDLING - Using sessionStorage for tab-scoped tokens
     // Role-aware token selection based on endpoint or explicit role
     let token = null;
@@ -62,9 +68,32 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => {
+    // Calculate response time for performance monitoring
+    const duration = Date.now() - (response.config.metadata?.startTime || Date.now());
+    
+    // Log slow responses (> 3 seconds)
+    if (duration > 3000) {
+      console.warn(`⚠️ Slow API response: ${response.config.url} took ${duration}ms`);
+    }
+    
+    // Mark that first request completed successfully
+    if (isFirstRequest) {
+      isFirstRequest = false;
+      if (duration > 5000) {
+        console.log('✅ Server woke up from cold start');
+      }
+    }
+    
     return response.data;
   },
   (error) => {
+    // Enhanced error handling with better messages
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      console.error('❌ Request timeout - Server may be cold starting');
+      error.isTimeout = true;
+      error.message = 'Server is taking longer than expected. It may be starting up. Please try again.';
+    }
+    
     if (error.response?.status === 401) {
       // 🔐 SECURE TOKEN HANDLING - Clear all role-specific tokens from sessionStorage
       sessionStorage.removeItem('adminToken');
@@ -92,6 +121,7 @@ apiClient.interceptors.response.use(
         }
       }
     }
+    
     return Promise.reject(error);
   }
 );

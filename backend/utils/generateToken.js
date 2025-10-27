@@ -13,9 +13,11 @@ const jwt = require('jsonwebtoken');
  * @param {string} email - User email to encode in token
  * @returns {string} JWT token
  */
+const logger = require('./logger');
+
 const generateToken = (userId, role, email = null) => {
   if (!process.env.JWT_SECRET) {
-    console.error('❌ CRITICAL: JWT_SECRET is not defined in environment variables');
+    logger.error('CRITICAL: JWT_SECRET is not defined in environment variables');
     throw new Error('Server configuration error: JWT_SECRET is missing. Please contact administrator.');
   }
 
