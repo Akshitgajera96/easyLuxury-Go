@@ -184,100 +184,133 @@ busSchema.methods.hasAmenity = function(amenity) {
 
 // Method to generate seat layout based on bus type
 busSchema.methods.generateSeatLayout = function() {
-  const seats = [];
-  
   if (this.seatType === SEAT_TYPES.SLEEPER || this.seatType === SEAT_TYPES.SEMI_SLEEPER) {
-    // Sleeper layout: 2+1 configuration
-    // Left side: 2 berths (lower + upper)
-    // Right side: 1 berth (lower + upper)
-    const rows = Math.ceil(this.totalSeats / 6); // 6 seats per row (2 lower + 2 upper on left, 1 lower + 1 upper on right)
+    // Sleeper layout: 2+1 configuration (NEW FORMAT: left/right)
+    // Right side: 2 berths (upper + lower) per row
+    // Left side: 1 berth (upper + lower) per row
+    const rows = Math.ceil(this.totalSeats / 6); // 6 seats per row
     
-    for (let row = 1; row <= rows; row++) {
-      // Left side - double berths
-      seats.push({
-        seatNumber: `L${row}-1`,
-        seatType: 'sleeper-lower',
-        position: { row, column: 1 }
-      });
-      seats.push({
-        seatNumber: `U${row}-1`,
-        seatType: 'sleeper-upper',
-        position: { row, column: 1 }
-      });
-      seats.push({
-        seatNumber: `L${row}-2`,
-        seatType: 'sleeper-lower',
-        position: { row, column: 2 }
-      });
-      seats.push({
-        seatNumber: `U${row}-2`,
-        seatType: 'sleeper-upper',
-        position: { row, column: 2 }
-      });
+    const leftUpper = [];
+    const leftLower = [];
+    const rightUpper = [];
+    const rightLower = [];
+    
+    let seatCount = 0;
+    for (let row = 1; row <= rows && seatCount < this.totalSeats; row++) {
+      // Right side - 2 seats (column 1 and 2)
+      if (seatCount < this.totalSeats) {
+        rightUpper.push({
+          seatNumber: `U${row}-1`,
+          seatType: 'upper',
+          position: { row, side: 'right', level: 'upper', seat: 1 }
+        });
+        seatCount++;
+      }
+      if (seatCount < this.totalSeats) {
+        rightLower.push({
+          seatNumber: `L${row}-1`,
+          seatType: 'lower',
+          position: { row, side: 'right', level: 'lower', seat: 1 }
+        });
+        seatCount++;
+      }
+      if (seatCount < this.totalSeats) {
+        rightUpper.push({
+          seatNumber: `U${row}-2`,
+          seatType: 'upper',
+          position: { row, side: 'right', level: 'upper', seat: 2 }
+        });
+        seatCount++;
+      }
+      if (seatCount < this.totalSeats) {
+        rightLower.push({
+          seatNumber: `L${row}-2`,
+          seatType: 'lower',
+          position: { row, side: 'right', level: 'lower', seat: 2 }
+        });
+        seatCount++;
+      }
       
-      // Right side - single berth
-      seats.push({
-        seatNumber: `L${row}-3`,
-        seatType: 'sleeper-lower',
-        position: { row, column: 3 }
-      });
-      seats.push({
-        seatNumber: `U${row}-3`,
-        seatType: 'sleeper-upper',
-        position: { row, column: 3 }
-      });
+      // Left side - 1 seat (column 3)
+      if (seatCount < this.totalSeats) {
+        leftUpper.push({
+          seatNumber: `U${row}-3`,
+          seatType: 'upper',
+          position: { row, side: 'left', level: 'upper', seat: 1 }
+        });
+        seatCount++;
+      }
+      if (seatCount < this.totalSeats) {
+        leftLower.push({
+          seatNumber: `L${row}-3`,
+          seatType: 'lower',
+          position: { row, side: 'left', level: 'lower', seat: 1 }
+        });
+        seatCount++;
+      }
     }
     
     this.seatLayout = {
-      lowerDeck: {
-        rows: rows,
-        seatsPerRow: 6,
-        seats: seats.slice(0, this.totalSeats)
-      },
-      upperDeck: {
-        rows: 0,
-        seatsPerRow: 0,
-        seats: []
-      }
+      left: { upper: leftUpper, lower: leftLower },
+      right: { upper: rightUpper, lower: rightLower },
+      totalRows: rows,
+      // Keep old format for backward compatibility
+      lowerDeck: { rows: 0, seatsPerRow: 0, seats: [] },
+      upperDeck: { rows: 0, seatsPerRow: 0, seats: [] }
     };
   } else {
-    // Seater layout: 2+2 configuration
+    // Seater layout: 2+2 configuration (NEW FORMAT: left/right)
     const rows = Math.ceil(this.totalSeats / 4); // 4 seats per row
     
-    for (let row = 1; row <= rows; row++) {
-      seats.push({
-        seatNumber: `${row}A`,
-        seatType: 'single',
-        position: { row, column: 1 }
-      });
-      seats.push({
-        seatNumber: `${row}B`,
-        seatType: 'single',
-        position: { row, column: 2 }
-      });
-      seats.push({
-        seatNumber: `${row}C`,
-        seatType: 'single',
-        position: { row, column: 3 }
-      });
-      seats.push({
-        seatNumber: `${row}D`,
-        seatType: 'single',
-        position: { row, column: 4 }
-      });
+    const leftLower = [];
+    const rightLower = [];
+    
+    let seatCount = 0;
+    for (let row = 1; row <= rows && seatCount < this.totalSeats; row++) {
+      // Left side - 2 seats
+      if (seatCount < this.totalSeats) {
+        leftLower.push({
+          seatNumber: `${row}A`,
+          seatType: 'single',
+          position: { row, side: 'left', level: 'lower', seat: 1 }
+        });
+        seatCount++;
+      }
+      if (seatCount < this.totalSeats) {
+        leftLower.push({
+          seatNumber: `${row}B`,
+          seatType: 'single',
+          position: { row, side: 'left', level: 'lower', seat: 2 }
+        });
+        seatCount++;
+      }
+      
+      // Right side - 2 seats
+      if (seatCount < this.totalSeats) {
+        rightLower.push({
+          seatNumber: `${row}C`,
+          seatType: 'single',
+          position: { row, side: 'right', level: 'lower', seat: 1 }
+        });
+        seatCount++;
+      }
+      if (seatCount < this.totalSeats) {
+        rightLower.push({
+          seatNumber: `${row}D`,
+          seatType: 'single',
+          position: { row, side: 'right', level: 'lower', seat: 2 }
+        });
+        seatCount++;
+      }
     }
     
     this.seatLayout = {
-      lowerDeck: {
-        rows: rows,
-        seatsPerRow: 4,
-        seats: seats.slice(0, this.totalSeats)
-      },
-      upperDeck: {
-        rows: 0,
-        seatsPerRow: 0,
-        seats: []
-      }
+      left: { upper: [], lower: leftLower },
+      right: { upper: [], lower: rightLower },
+      totalRows: rows,
+      // Keep old format for backward compatibility
+      lowerDeck: { rows: 0, seatsPerRow: 0, seats: [] },
+      upperDeck: { rows: 0, seatsPerRow: 0, seats: [] }
     };
   }
 

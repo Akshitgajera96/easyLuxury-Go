@@ -19,7 +19,8 @@ const BusCard = ({ bus, trip, onSelect }) => {
     departureDateTime,
     arrivalDateTime,
     baseFare,
-    availableSeats
+    availableSeats,
+    route
   } = trip
   
   const fare = baseFare
@@ -72,6 +73,13 @@ const BusCard = ({ bus, trip, onSelect }) => {
       className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
     >
       <div className="p-6">
+        {/* Route Information */}
+        <div className="mb-3 pb-3 border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {route?.sourceCity || 'N/A'} → {route?.destinationCity || 'N/A'}
+          </h2>
+        </div>
+
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div>

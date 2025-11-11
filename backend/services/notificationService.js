@@ -15,16 +15,18 @@ const User = require('../models/userModel');
 const sendBookingConfirmation = async (bookingId) => {
   try {
     const Booking = require('../models/bookingModel');
+    // PERFORMANCE: Optimized populate with selective fields only
     const booking = await Booking.findById(bookingId)
-      .populate('user')
-      .populate('trip')
+      .populate('user', 'name email phone') // Only needed user fields
       .populate({
         path: 'trip',
+        select: 'departureDateTime arrivalDateTime bus route',
         populate: [
-          { path: 'bus' },
-          { path: 'route' }
+          { path: 'bus', select: 'busNumber type' },
+          { path: 'route', select: 'sourceCity destinationCity' }
         ]
-      });
+      })
+      .lean(); // PERFORMANCE: Read-only operation
 
     if (!booking) {
       throw new Error('Booking not found');
@@ -45,16 +47,18 @@ const sendBookingConfirmation = async (bookingId) => {
 const sendCancellationNotification = async (bookingId) => {
   try {
     const Booking = require('../models/bookingModel');
+    // PERFORMANCE: Optimized populate with selective fields only
     const booking = await Booking.findById(bookingId)
-      .populate('user')
-      .populate('trip')
+      .populate('user', 'name email phone') // Only needed user fields
       .populate({
         path: 'trip',
+        select: 'departureDateTime arrivalDateTime bus route',
         populate: [
-          { path: 'bus' },
-          { path: 'route' }
+          { path: 'bus', select: 'busNumber type' },
+          { path: 'route', select: 'sourceCity destinationCity' }
         ]
-      });
+      })
+      .lean(); // PERFORMANCE: Read-only operation
 
     if (!booking) {
       throw new Error('Booking not found');
@@ -97,16 +101,17 @@ const sendWalletNotification = async (userId, amount, type) => {
 const sendTripReminder = async (bookingId) => {
   try {
     const Booking = require('../models/bookingModel');
+    // PERFORMANCE: Optimized populate with selective fields only
     const booking = await Booking.findById(bookingId)
-      .populate('user')
-      .populate('trip')
+      .populate('user', 'name email') // Only needed user fields
       .populate({
         path: 'trip',
+        select: 'departureDateTime route',
         populate: [
-          { path: 'bus' },
-          { path: 'route' }
+          { path: 'route', select: 'source destination' }
         ]
-      });
+      })
+      .lean(); // PERFORMANCE: Read-only operation
 
     if (!booking) {
       throw new Error('Booking not found');

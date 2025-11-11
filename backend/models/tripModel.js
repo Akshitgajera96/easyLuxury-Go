@@ -146,6 +146,11 @@ tripSchema.index({ departureDateTime: 1 });
 tripSchema.index({ status: 1 });
 tripSchema.index({ 'bookedSeats.seatNumber': 1 });
 
+// Compound indexes for efficient queries
+tripSchema.index({ departureDateTime: 1, status: 1 }); // For expired trip updates
+tripSchema.index({ bus: 1, departureDateTime: 1, status: 1 }); // For overlap checks
+tripSchema.index({ status: 1, isActive: 1, departureDateTime: 1 }); // For user searches
+
 // Virtual for occupancy percentage
 tripSchema.virtual('occupancy').get(function() {
   const bus = this.bus;
@@ -256,5 +261,12 @@ tripSchema.pre('save', async function(next) {
   }
   next();
 });
+
+// PERFORMANCE: Add indexes for frequently queried fields
+tripSchema.index({ departureDateTime: 1, status: 1 }); // Compound index for date + status queries
+tripSchema.index({ bus: 1, departureDateTime: 1 }); // For bus schedule lookups
+tripSchema.index({ route: 1, departureDateTime: 1 }); // For route-based searches
+tripSchema.index({ status: 1 }); // For status filtering
+tripSchema.index({ isActive: 1 }); // For active trip filtering
 
 module.exports = mongoose.model('Trip', tripSchema);

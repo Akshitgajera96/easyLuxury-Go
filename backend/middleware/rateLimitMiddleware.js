@@ -7,10 +7,12 @@
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 
-// General API rate limiter - 100 requests per 15 minutes
+// General API rate limiter
+// Development: 10000 requests per 15 minutes (unlimited for testing)
+// Production: 200 requests per 15 minutes (reasonable for normal usage)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 200 : 10000,
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later.'
@@ -26,10 +28,14 @@ const apiLimiter = rateLimit({
   },
 });
 
-// Strict limiter for authentication endpoints - 5 requests per 15 minutes
+// Strict limiter for authentication endpoints
+// Development: 100 requests per 15 minutes (lenient for testing)
+// Production: 10 requests per 15 minutes (strict for security)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.MAX_LOGIN_ATTEMPTS || 5, // Limit each IP to 5 requests per windowMs
+  max: process.env.NODE_ENV === 'production' 
+    ? (process.env.MAX_LOGIN_ATTEMPTS || 10) 
+    : 100,
   message: {
     success: false,
     message: 'Too many login attempts from this IP, please try again after 15 minutes.'
@@ -47,10 +53,12 @@ const authLimiter = rateLimit({
   },
 });
 
-// Moderate limiter for booking endpoints - 20 requests per 15 minutes
+// Moderate limiter for booking endpoints
+// Development: 1000 requests per 15 minutes (very lenient for testing)
+// Production: 50 requests per 15 minutes (reasonable for normal usage)
 const bookingLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
+  max: process.env.NODE_ENV === 'production' ? 50 : 1000,
   message: {
     success: false,
     message: 'Too many booking requests, please try again later.'
@@ -66,10 +74,12 @@ const bookingLimiter = rateLimit({
   },
 });
 
-// Moderate limiter for payment endpoints - 10 requests per 15 minutes
+// Moderate limiter for payment endpoints
+// Development: 500 requests per 15 minutes (lenient for testing)
+// Production: 30 requests per 15 minutes (reasonable for payments)
 const paymentLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: process.env.NODE_ENV === 'production' ? 30 : 500,
   message: {
     success: false,
     message: 'Too many payment requests, please try again later.'

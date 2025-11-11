@@ -45,8 +45,14 @@ const createBus = async (busData) => {
     seatLayout: seatLayout || undefined
   });
 
-  // Generate seat layout only if not provided
-  if (!seatLayout || !seatLayout.left || !seatLayout.right) {
+  // Generate seat layout only if not provided or invalid
+  const hasValidNewLayout = seatLayout && 
+    seatLayout.left && seatLayout.right && 
+    seatLayout.totalRows > 0 &&
+    (seatLayout.left.upper?.length > 0 || seatLayout.left.lower?.length > 0 ||
+     seatLayout.right.upper?.length > 0 || seatLayout.right.lower?.length > 0);
+  
+  if (!hasValidNewLayout) {
     bus.generateSeatLayout();
   }
 
@@ -142,9 +148,15 @@ const updateBus = async (busId, updateData) => {
     }
   });
 
-  // Regenerate seat layout only if total seats changed AND no custom layout provided
+  // Regenerate seat layout only if total seats changed AND no valid custom layout provided
   if (updateData.totalSeats && updateData.totalSeats !== bus.totalSeats) {
-    if (!updateData.seatLayout || !updateData.seatLayout.left || !updateData.seatLayout.right) {
+    const hasValidNewLayout = updateData.seatLayout && 
+      updateData.seatLayout.left && updateData.seatLayout.right && 
+      updateData.seatLayout.totalRows > 0 &&
+      (updateData.seatLayout.left.upper?.length > 0 || updateData.seatLayout.left.lower?.length > 0 ||
+       updateData.seatLayout.right.upper?.length > 0 || updateData.seatLayout.right.lower?.length > 0);
+    
+    if (!hasValidNewLayout) {
       bus.generateSeatLayout();
     }
   }

@@ -36,7 +36,6 @@ const Sidebar = ({ isOpen = true, onClose }) => {
     { path: '/staff/my-trips', label: 'My Trips', icon: '🚌' },
     { path: '/staff/passengers', label: 'Passengers', icon: '👥' },
     { path: '/staff/updates', label: 'Trip Updates', icon: '📍' },
-    { path: '/trips', label: 'Search Trips', icon: '🔍' },
   ]
 
   const menuItems = isAdmin ? adminMenuItems : isStaff ? staffMenuItems : userMenuItems

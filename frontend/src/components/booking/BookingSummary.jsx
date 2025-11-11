@@ -26,20 +26,21 @@ const BookingSummary = ({
 
   const {
     busNumber,
-    busType,
+    seatType,
     operator,
     amenities = []
   } = bus
 
   const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString('en-IN', {
+    return new Date(dateString).toLocaleTimeString('en-US', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: true
     })
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -95,23 +96,23 @@ const BookingSummary = ({
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Route:</span>
-              <span className="font-semibold">{route?.from} → {route?.to}</span>
+              <span className="font-semibold text-accent">{route?.sourceCity || route?.from} → {route?.destinationCity || route?.to}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Departure:</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-accent">
                 {formatTime(departureDateTime)} · {formatDate(departureDateTime)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Arrival:</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-accent">
                 {formatTime(arrivalDateTime)} · {formatDate(arrivalDateTime)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Duration:</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-accent">
                 {calculateDuration(departureDateTime, arrivalDateTime)}
               </span>
             </div>
@@ -128,7 +129,7 @@ const BookingSummary = ({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Bus Type:</span>
-              <span className="font-semibold capitalize">{busType}</span>
+              <span className="font-semibold capitalize">{seatType}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Bus Number:</span>

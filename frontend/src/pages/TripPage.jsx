@@ -144,7 +144,7 @@ const TripPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Available Buses</h1>
-              <p className="text-accent">
+              <p className="text-white">
                 {from && to ? (
                   <>{from} → {to} • {date ? new Date(date).toLocaleDateString() : 'All Dates'} • {passengers} {passengers === '1' ? 'Passenger' : 'Passengers'}</>
                 ) : (
@@ -152,18 +152,18 @@ const TripPage = () => {
                 )}
               </p>
               {from && to && date && (
-                <p className="text-accent text-sm mt-1">
+                <p className="text-white/90 text-sm mt-1">
                   💡 Showing trips for 3 days starting from selected date
                 </p>
               )}
               {!from && !to && (
-                <p className="text-accent text-sm mt-1">
+                <p className="text-white/90 text-sm mt-1">
                   💡 Use filters to narrow down your search
                 </p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-accent">{filteredTrips.length} buses found</p>
+              <p className="text-white font-semibold">{filteredTrips.length} buses found</p>
             </div>
           </div>
         </div>

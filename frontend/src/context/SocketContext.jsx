@@ -39,8 +39,9 @@ export const SocketProvider = ({ children }) => {
         return;
       }
 
-      // Add small delay to allow auth state to fully stabilize
-      // This prevents race conditions on initial page load
+      // PERFORMANCE: Increase delay to reduce initial load time pressure
+      // Socket.IO connection is not critical for initial page render
+      // Most pages don't need real-time features immediately
       initTimeoutRef.current = setTimeout(() => {
         isInitializing.current = true;
         connectionAttempts.current = 0;
@@ -125,7 +126,7 @@ export const SocketProvider = ({ children }) => {
 
         setSocket(newSocket);
         isInitializing.current = false;
-      }, 300); // 300ms delay to stabilize auth state
+      }, 1000); // PERFORMANCE: 1 second delay - reduces initial load time, Socket.IO not critical for page render
 
       return () => {
         if (initTimeoutRef.current) {

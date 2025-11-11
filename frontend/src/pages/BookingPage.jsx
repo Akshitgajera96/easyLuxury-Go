@@ -15,6 +15,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import PaymentMethodSelector from '../components/wallet/PaymentMethodSelector'
 import bookingService from '../services/bookingService'
+import tripService from '../services/tripService'
 import { toast } from 'react-hot-toast'
 import logo from '../assets/images/logo.jpg'
 
@@ -34,63 +35,60 @@ const BookingPage = () => {
   const [showAddMoneyDialog, setShowAddMoneyDialog] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [addMoneyAmount, setAddMoneyAmount] = useState('')
+  const [trip, setTrip] = useState(null)
+  const [bus, setBus] = useState(null)
+  const [fetchingData, setFetchingData] = useState(true)
 
-  // Mock data - in real app, this would come from location state or API
-  // Using tomorrow's date for mock data to avoid "already departed" errors
-  const getTomorrowDate = () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(10, 0, 0, 0)
-    return tomorrow.toISOString()
-  }
-  
-  const getTomorrowArrival = () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(16, 0, 0, 0)
-    return tomorrow.toISOString()
-  }
-
-  const trip = location.state?.trip || {
-    id: '1',
-    departureDateTime: getTomorrowDate(),
-    arrivalDateTime: getTomorrowArrival(),
-    baseFare: 1200,
-    availableSeats: 25,
-    route: {
-      sourceCity: 'Mumbai',
-      destinationCity: 'Goa'
+  // Fetch trip and bus data from API or location state
+  useEffect(() => {
+    const fetchTripData = async () => {
+      try {
+        setFetchingData(true)
+        
+        // Check if data is passed via location state (from search results)
+        if (location.state?.trip && location.state?.bus) {
+          setTrip(location.state.trip)
+          setBus(location.state.bus)
+          setFetchingData(false)
+          return
+        }
+        
+        // If no trip data in state, try to get tripId from URL params
+        const searchParams = new URLSearchParams(location.search)
+        const tripId = searchParams.get('tripId')
+        
+        if (!tripId) {
+          toast.error('No trip selected. Redirecting to search...')
+          navigate('/find-trips')
+          return
+        }
+        
+        // Fetch trip data from API
+        const response = await tripService.getTripById(tripId)
+        
+        if (response?.success && response.data?.trip) {
+          const tripData = response.data.trip
+          setTrip(tripData)
+          setBus(tripData.bus)
+        } else {
+          toast.error('Failed to load trip details')
+          navigate('/find-trips')
+        }
+      } catch (error) {
+        console.error('Error fetching trip data:', error)
+        toast.error('Failed to load trip details')
+        navigate('/find-trips')
+      } finally {
+        setFetchingData(false)
+      }
     }
-  }
+    
+    fetchTripData()
+  }, [location.state, location.search, navigate])
 
-  const bus = location.state?.bus || {
-    id: '1',
-    busNumber: 'MH01AB1234',
-    seatType: 'sleeper',
-    amenities: ['wifi', 'ac', 'charging', 'blanket', 'snacks'],
-    operator: 'Luxury Travels',
-    totalSeats: 40,
-    seatLayout: {
-      left: {
-        upper: Array.from({ length: 20 }, (_, i) => ({
-          seatNumber: `U${Math.floor(i / 2) + 1}-${(i % 2) + 1}`,
-          position: { row: Math.floor(i / 2) + 1, column: (i % 2) + 1 }
-        })),
-        lower: Array.from({ length: 20 }, (_, i) => ({
-          seatNumber: `L${Math.floor(i / 2) + 1}-${(i % 2) + 1}`,
-          position: { row: Math.floor(i / 2) + 1, column: (i % 2) + 1 }
-        }))
-      },
-      right: {
-        upper: [],
-        lower: []
-      },
-      totalRows: 10
-    }
-  }
-
-  const bookedSeats = ['U1-1', 'L2-3', 'U5-2'] // Mock booked seats
-  const lockedSeats = ['U3-1'] // Mock locked seats
+  // Get booked and locked seats from trip data
+  const bookedSeats = trip?.bookedSeats?.map(seat => seat.seatNumber) || []
+  const lockedSeats = [] // This would come from socket/real-time data
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -105,6 +103,9 @@ const BookingPage = () => {
   })
 
   useEffect(() => {
+    // Only lock seats if trip data is loaded
+    if (!trip) return
+
     // Lock seats when selected
     const tripId = trip._id || trip.id
     if (selectedSeats.length > 0 && socket) {
@@ -117,7 +118,7 @@ const BookingPage = () => {
         releaseSeats(tripId, selectedSeats)
       }
     }
-  }, [selectedSeats, trip._id, trip.id, socket, lockSeats, releaseSeats])
+  }, [selectedSeats, trip, socket, lockSeats, releaseSeats])
 
   const handleSeatSelect = (seats) => {
     setSelectedSeats(seats)
@@ -224,6 +225,18 @@ const BookingPage = () => {
     )
   }
 
+  // Show loading while fetching trip data
+  if (fetchingData || !trip || !bus) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="lg" variant="primary" />
+          <p className="mt-4 text-gray-600">Loading trip details...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -300,6 +313,7 @@ const BookingPage = () => {
                 <SeatLayout
                   busLayout={bus.seatLayout}
                   seatType={bus.seatType}
+                  totalSeats={bus.totalSeats}
                   bookedSeats={bookedSeats}
                   lockedSeats={lockedSeats}
                   selectedSeats={selectedSeats}

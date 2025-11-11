@@ -36,8 +36,10 @@ const ManageBookingsPage = () => {
       
       const response = await adminService.getAllBookings(filterParams)
       
-      if (response.data.success) {
-        setBookings(response.data.data.bookings || [])
+      // Backend returns: { success, data: { bookings, pagination }, message }
+      // apiClient returns response.data which is the whole response
+      if (response.success) {
+        setBookings(response.data.bookings || [])
       } else {
         throw new Error('Failed to fetch bookings')
       }
@@ -54,7 +56,7 @@ const ManageBookingsPage = () => {
     try {
       const response = await adminService.updateBookingStatus(bookingId, newStatus)
       
-      if (response.data.success) {
+      if (response.success) {
         toast.success('Booking status updated successfully')
         fetchBookings()
       } else {
@@ -72,7 +74,7 @@ const ManageBookingsPage = () => {
     try {
       const response = await adminService.updateBookingStatus(selectedBooking._id, 'cancelled')
       
-      if (response.data.success) {
+      if (response.success) {
         toast.success('Booking cancelled successfully')
         setShowCancelDialog(false)
         setSelectedBooking(null)

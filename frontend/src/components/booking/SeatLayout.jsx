@@ -9,6 +9,7 @@ import { motion } from 'framer-motion'
 const SeatLayout = ({ 
   busLayout = null, // New structure: { left: { upper: [], lower: [] }, right: { upper: [], lower: [] }, totalRows: number }
   seatType = 'seater',
+  totalSeats = 40, // Total seats in the bus (for fallback generation)
   seats = [], 
   bookedSeats = [], 
   lockedSeats = [],
@@ -22,9 +23,84 @@ const SeatLayout = ({
     setLocalSelectedSeats(selectedSeats)
   }, [selectedSeats])
 
+  // Debug logging to help diagnose seat layout issues
+  useEffect(() => {
+    console.log('🚌 SeatLayout Debug:', {
+      hasBusLayout: !!busLayout,
+      busLayoutKeys: busLayout ? Object.keys(busLayout) : [],
+      hasNewLayout,
+      hasOldLayout,
+      leftSeats: busLayout?.left ? {
+        upperCount: busLayout.left.upper?.length || 0,
+        lowerCount: busLayout.left.lower?.length || 0
+      } : null,
+      rightSeats: busLayout?.right ? {
+        upperCount: busLayout.right.upper?.length || 0,
+        lowerCount: busLayout.right.lower?.length || 0
+      } : null,
+      oldLayoutSeats: busLayout?.lowerDeck ? {
+        lowerDeckSeats: busLayout.lowerDeck.seats?.length || 0,
+        upperDeckSeats: busLayout.upperDeck?.seats?.length || 0
+      } : null
+    })
+  }, [busLayout])
+
+  // Auto-generate a basic layout if none exists
+  const generateFallbackLayout = () => {
+    if (!totalSeats || totalSeats === 0) return null
+    
+    console.log('🔧 Auto-generating fallback layout for', totalSeats, 'seats of type:', seatType)
+    
+    // Determine if it's a sleeper bus based on seatType
+    const isSleeper = seatType === 'sleeper' || seatType === 'semi-sleeper'
+    
+    // Generate simple layout based on total seats
+    const seatsPerRow = isSleeper ? 3 : 4 // Sleeper: 2 right + 1 left, Seater: 2 right + 2 left
+    const rows = Math.ceil(totalSeats / seatsPerRow)
+    
+    const leftSeats = []
+    const rightSeats = []
+    
+    let seatIndex = 1 // Start from 1 for seat numbering
+    for (let row = 1; row <= rows; row++) {
+      // Right side (2 seats per row)
+      for (let i = 0; i < 2; i++) {
+        if (seatIndex <= totalSeats) {
+          const seatNum = `S${seatIndex}`
+          rightSeats.push({
+            seatNumber: seatNum,
+            seatType: 'single',
+            position: { row, side: 'right', level: 'lower', seat: i + 1 }
+          })
+          seatIndex++
+        }
+      }
+      
+      // Left side (1 or 2 seats depending on bus type)
+      const leftSeatsInRow = isSleeper ? 1 : 2
+      for (let i = 0; i < leftSeatsInRow; i++) {
+        if (seatIndex <= totalSeats) {
+          const seatNum = `S${seatIndex}`
+          leftSeats.push({
+            seatNumber: seatNum,
+            seatType: 'single',
+            position: { row, side: 'left', level: 'lower', seat: i + 1 }
+          })
+          seatIndex++
+        }
+      }
+    }
+    
+    return {
+      left: { upper: [], lower: leftSeats },
+      right: { upper: [], lower: rightSeats },
+      totalRows: rows
+    }
+  }
+  
   // Check if bus layout uses new structure (left/right) or old structure (lowerDeck/upperDeck)
-  const hasNewLayout = busLayout && busLayout.left && busLayout.right
-  const hasOldLayout = busLayout && (busLayout.lowerDeck || busLayout.upperDeck)
+  const hasNewLayout = busLayout && busLayout.left && busLayout.right && busLayout.totalRows > 0
+  const hasOldLayout = busLayout && (busLayout.lowerDeck?.seats?.length > 0 || busLayout.upperDeck?.seats?.length > 0)
   const totalRows = hasNewLayout ? busLayout.totalRows : (busLayout?.lowerDeck?.rows || 10)
   
   // Convert old layout format to new format
@@ -109,8 +185,10 @@ const SeatLayout = ({
     }
   }
   
-  // Get effective layout (convert old to new if needed)
-  const effectiveLayout = hasNewLayout ? busLayout : (hasOldLayout ? convertOldLayoutToNew() : null)
+  // Get effective layout (convert old to new if needed, or generate fallback)
+  const effectiveLayout = hasNewLayout 
+    ? busLayout 
+    : (hasOldLayout ? convertOldLayoutToNew() : generateFallbackLayout())
   
   // Get all seats from the layout structure
   const getAllSeatsFromLayout = () => {
@@ -453,6 +531,20 @@ const SeatLayout = ({
             <div className="text-center py-8 text-gray-500">
               <p className="text-lg">⚠️ No seat layout configured</p>
               <p className="text-sm">Please contact admin to set up bus layout</p>
+              {busLayout && (
+                <div className="mt-4 text-xs text-left bg-yellow-50 border border-yellow-200 rounded p-3 max-w-md mx-auto">
+                  <p className="font-semibold text-yellow-800 mb-2">Debug Info:</p>
+                  <pre className="text-yellow-700 whitespace-pre-wrap">
+                    {JSON.stringify({
+                      hasLeft: !!busLayout.left,
+                      hasRight: !!busLayout.right,
+                      totalRows: busLayout.totalRows,
+                      hasLowerDeck: !!busLayout.lowerDeck,
+                      hasUpperDeck: !!busLayout.upperDeck
+                    }, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
         </div>

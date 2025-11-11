@@ -21,19 +21,15 @@ const connectDB = async () => {
     const conn = await mongoose.connect(
       process.env.MONGO_URI || 'mongodb://localhost:27017/easyluxury',
       {
-        // Connection timeouts
-        serverSelectionTimeoutMS: 10000, // Increased to 10 seconds for Render cold starts
+        // Connection timeouts - increased for network issues
+        serverSelectionTimeoutMS: 30000, // Increased to 30 seconds for DNS resolution
         socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-        connectTimeoutMS: 10000, // Connection timeout
+        connectTimeoutMS: 30000, // Connection timeout increased
         
         // Connection pooling - optimized for Render free tier
         maxPoolSize: process.env.NODE_ENV === 'production' ? 10 : 5, // Reduced for free tier
         minPoolSize: process.env.NODE_ENV === 'production' ? 3 : 1, // Keep minimum connections alive
         maxIdleTimeMS: 60000, // Keep idle connections for 60 seconds (prevent reconnection overhead)
-        
-        // Keep-alive settings to maintain connection health
-        keepAlive: true,
-        keepAliveInitialDelay: 300000, // 5 minutes
         
         // Retry settings
         retryWrites: true, // Retry failed writes

@@ -32,14 +32,14 @@ const ManageUsersPage = () => {
     try {
       const response = await adminService.getUsersManagement()
       
-      if (response.data.success) {
-        setUsers(response.data.data.users || [])
+      if (response.success) {
+        setUsers(response.data.users || [])
       } else {
         throw new Error('Failed to fetch users')
       }
     } catch (error) {
       console.error('Failed to fetch users:', error)
-      setError(error.response?.data?.message || 'Failed to load users')
+      setError(error.response?.data?.message || error.message || 'Failed to load users')
       toast.error('Failed to load users')
     } finally {
       setLoading(false)

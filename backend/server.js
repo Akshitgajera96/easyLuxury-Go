@@ -67,9 +67,6 @@ const io = socketIo(server, {
   pingInterval: 25000
 });
 
-// Connect to MongoDB
-connectDB();
-
 // Helmet security headers
 app.use(helmet({
   contentSecurityPolicy: {
@@ -212,15 +209,29 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
-server.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT} | Environment: ${process.env.NODE_ENV || 'development'}`);
-  
-  // Start location status monitoring scheduler
-  startLocationScheduler();
-  
-  // Start trip expiration scheduler
-  startExpirationScheduler();
-});
+// Start server only after MongoDB connection is established
+const startServer = async () => {
+  try {
+    // Connect to MongoDB first
+    await connectDB();
+    logger.info('MongoDB connection established');
+    
+    // Start HTTP server
+    server.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT} | Environment: ${process.env.NODE_ENV || 'development'}`);
+      
+      // Start schedulers only after server and DB are ready
+      startLocationScheduler();
+      startExpirationScheduler();
+    });
+  } catch (error) {
+    logger.error(`Failed to start server: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+// Initialize server
+startServer();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

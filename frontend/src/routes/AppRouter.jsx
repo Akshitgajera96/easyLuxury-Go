@@ -12,6 +12,7 @@ import HomePage from '../pages/HomePage'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
 import TripPage from '../pages/TripPage'
+import ViewTicketPage from '../pages/ViewTicketPage'
 import NotFoundPage from '../pages/NotFoundPage'
 
 // Customer Pages
@@ -79,6 +80,7 @@ const AppRouter = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/trips" element={<TripPage />} />
+      <Route path="/view-ticket" element={<ViewTicketPage />} />
       
       {/* Staff Public Routes */}
       <Route path="/staff/login" element={<StaffLoginPage />} />
